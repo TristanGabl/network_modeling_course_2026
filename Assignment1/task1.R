@@ -1,4 +1,5 @@
 # task 1:
+#Group 30: Tristan Gabl, Hristo Georgiev, Kevin Halter, Jakob Teetz
 
 seed = 161
 set.seed(seed)

@@ -1,4 +1,6 @@
 #task 3 
+#Group 30: Tristan Gabl, Hristo Georgiev, Kevin Halter, Jakob Teetz
+
 library(sna)
 library(network)
 library(ggplot2)
