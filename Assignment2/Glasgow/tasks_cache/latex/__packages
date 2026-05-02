@@ -1,0 +1,11 @@
+network
+ergm
+ggplot2
+dplyr
+tidyr
+statnet.common
+sna
+lattice
+latticeExtra
+broom
+texreg

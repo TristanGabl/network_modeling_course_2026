@@ -1,0 +1,419 @@
+---
+title: "Assignment 2"
+subtitle: "Glasgow School data, Wave 1"
+
+author: ""
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage{amsmath}
+  - \usepackage{amssymb}
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+# 1. Geometrically Weighted Terms in ERGMs
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 7, fig.height = 5, fig.align = "center")
+library(ergm)
+library(network)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(sna)
+library(latticeExtra)   
+library(broom)
+library(texreg)
+
+adj <- as.matrix(read.csv("f1.csv", header = FALSE))
+dim(adj)  
+
+net <- as.network(adj, directed = TRUE)
+net     
+
+odeg_dist <- summary(net ~ odegree(0:50))
+max_k <- length(odeg_dist) - 1
+   
+max_out <- max(degree(net, cmode = "outdegree"))
+max_out     
+```
+
+The geometrically weighted out-degree (GWOD) statistic is$$s_{GWD}(x,\alpha) = e^{\alpha} \sum_{k=1}^{n} \left\{1 - (1-e^{-\alpha})^k\right\} D_k^{out}(x),$$where $D_k^{out}(x)$ is the number of nodes with out-degree exactly $k$.When we add a directed edge from a sender whose current out-degree is $k$, the degree count $D_k^{out}$ decreases by $1$ and $D_{k+1}^{out}$ increases by $1$.
+All other degree counts remain unchanged.Therefore, the change statistic is: $$\begin{aligned}
+\delta_{GWD}(k,\alpha) &= e^{\alpha} \left[ \left(1-(1-e^{-\alpha})^{k+1}\right) - \left(1-(1-e^{-\alpha})^k\right) \right] \\
+&= e^{\alpha} \left[ -(1-e^{-\alpha})^{k+1} + (1-e^{-\alpha})^k \right] \\
+&= e^{\alpha} (1-e^{-\alpha})^k \left[ 1 - (1-e^{-\alpha}) \right] \\
+&= e^{\alpha} (1-e^{-\alpha})^k e^{-\alpha} \\
+&= (1-e^{-\alpha})^k.
+\end{aligned}$$Thus, the change statistic is$$\delta_{GWD}(k,\alpha) = (1-e^{-\alpha})^k.$$
+
+```{r}
+# setup
+delta_GWD <- function(k, alpha) {
+  (1 - exp(-alpha))^k
+}
+
+alpha_vals <- c(-1, -0.5, 0, 0.1, 0.2, 0.3, 0.5, log(2), 1, 2, 3)
+neg_alpha  <- c(-1, -0.5)
+nonneg_alpha <- setdiff(alpha_vals, neg_alpha)
+
+
+k_range <- 0:max_k
+```
+
+```{r plot-negative, echo = FALSE}
+df_neg1 <- data.frame(k = k_range, delta = delta_GWD(k_range, alpha = -1))
+p1 <- ggplot(df_neg1, aes(x = k, y = delta)) +
+  geom_point(size = 2) + geom_line() +
+  labs(title = expression(alpha == -1),
+       x = "current out-degree k", y = expression(delta[GWD](k, alpha))) +
+  theme_minimal()
+print(p1)
+
+
+df_neg2 <- data.frame(k = k_range, delta = delta_GWD(k_range, alpha = -0.5))
+p2 <- ggplot(df_neg2, aes(x = k, y = delta)) +
+  geom_point(size = 2) + geom_line() +
+  labs(title = expression(alpha == -0.5),
+       x = "current out-degree k", y = expression(delta[GWD](k, alpha))) +
+  theme_minimal()
+print(p2)
+```
+
+```{r plot-nonneg, echo = FALSE}
+df_list <- lapply(nonneg_alpha, function(a) {
+  data.frame(k = k_range,
+             delta = delta_GWD(k_range, a),
+             alpha = as.character(a))
+})
+df_nonneg <- bind_rows(df_list)
+df_nonneg$alpha <- factor(df_nonneg$alpha, levels = as.character(nonneg_alpha))
+
+ggplot(df_nonneg, aes(x = k, y = delta, colour = alpha, group = alpha)) +
+  geom_line(linewidth = 1) + geom_point(size = 1.5) +
+  scale_colour_brewer(palette = "Paired") +
+  labs(title = "Change statistic for non‑negative decay values",
+       x = "current out-degree k", y = expression(delta[GWD](k, alpha))) +
+  theme_minimal()
+```
+
+The change statistic $$\delta(k,\alpha)=(1-e^{-\alpha})^k$$ directly measures the increase in the GWOD statistic when a node with out-degree $k$ adds a new tie.
+
+Its behaviour depends critically on $\alpha$:
+
+For $\alpha>0$, the base $b=1-e^{-\alpha}$ lies strictly between 0 and 1.
+Hence $\delta$ is a decreasing geometric sequence in $k$.
+\* Very small positive $\alpha$ (e.g., 0.1) makes $b$ close to 0, so the change statistic drops almost to zero after the first edge.
+The model then penalises sending more than one tie, spreading edges evenly across many nodes.
+\* Medium values like $\ln(2)$ give $b=0.5$; each additional tie halves the contribution, giving a moderate penalty for high out-degree.
+\* Large $\alpha$ (2 or 3) pushes $b$ close to 1, making $\delta \approx 1$ for all $k$.
+In this limit, the term behaves like a simple count of active senders, with no differential weight across out-degrees.
+
+For $\alpha=0$, then $b=0$, so $\delta(0)=1$ and $\delta(k)=0$ for all $k \ge 1$.
+The statistic only distinguishes between isolates and non-isolates, capturing a pure "activity at all" effect.
+
+For $\alpha<0$, $e^{-\alpha}>1$ so $b<0$ and $|b|>1$.
+The magnitude of $\delta$ grows exponentially with $k$, but the sign alternates: positive for even $k$, negative for odd $k$.
+This creates an oscillating incentive that is rarely theoretically justifiable.
+
+Taking all above into account, the $\alpha$ is the tuning parameter that controls how quickly the "weight" of an additional out-edge decays or, if $\alpha<0$, amplifies, with the sender's current out-degree.
+Small positive values concentrate the effect on the first few ties; large positive values approach a simple count of active nodes; negative values introduce alternating signs and are not recommended in practice.
+
+Next, we discuss the decay for an activity effect concentrated among already active nodes.
+If we wish the GWOD term to capture an activity effect that is strongest for already-active nodes, we need the marginal contribution $\delta(k)$ to *increase* with $k$.
+
+From the formula $\delta(k)=(1-e^{-\alpha})^k$, a positive base $>1$ is required to achieve monotonically increasing $\delta$.
+However, $1-e^{-\alpha}>1$ would demand $e^{-\alpha}<0$, which is impossible for real $\alpha$.
+
+The only way to make $|\delta(k)|$ increase with $k$ is to choose a *negative* $\alpha$, because then $b<0$ and $|b|>1$.
+For example, $\alpha=-1$ yields $\delta(k) \approx (-1.718)^k$, whose magnitude grows rapidly with $k$.
+
+Superficially, this emphasises high out-degree actors.
+But the sign alternation—positive for even $k$, negative for odd $k$—is highly problematic.
+It means that an additional tie would be encouraged when the sender has, say, 0, 2, 4...
+ties and discouraged when it has 1, 3, 5...
+ties.
+Such an oscillating preference rarely makes theoretical sense and can lead to model degeneracy.
+
+Therefore, the standard GWOD term with a *positive* $\alpha$ is not designed to produce a monotonically increasing weight function.
+
+To model an activity effect concentrated among already-active nodes in practice, researchers use one of two strategies:
+
+-   Negative $\theta_{GWD}$ with positive $\alpha$: A positive $\alpha$ alone makes $\delta(k)$ decrease with $k$, which would favour many low-degree nodes. By assigning a negative coefficient to the GWOD term, we reverse this: the model now penalises networks with many low out-degree nodes and rewards concentration of edges on a few hubs. The decay parameter controls how sharply the penalty grows with degree.
+-   Explicit sender-activity covariates: Terms like `nodeocov` (main effect of a continuous attribute on out-degree) or `nodeifactor` allow the model to directly capture that students with higher alcohol consumption or other activity-related traits send more ties.
+
+To conclude, while a negative $\alpha$ formally yields increasing $|\delta|$, the resulting sign oscillation makes it unattractive.
+The recommended approach for a "rich-get-richer" activity effect is to use a negative GWOD coefficient together with a positive $\alpha$ (e.g., $0.3 - 0.7$) or to include dedicated covariate effects.
+
+Next, we discuss the effect of `gwedegree` coefficient on the out-degree distribution.
+
+```{r }
+set.seed(1234)
+m1 <- ergm(net ~ edges, control = control.ergm(seed = 123))
+summary(m1)
+
+```
+
+Models with fixed `gwedegree` coefficient ($\theta = \pm 2$, decay = 0.3)
+
+```{r }
+decay <- 0.3
+
+# concentrate
+m2_neg <- ergm(net ~ edges + offset(gwodegree(decay, fixed = TRUE)), 
+               offset.coef = -2,
+               control = control.ergm(seed = 456))
+summary(m2_neg)
+
+# disperse
+m2_pos <- ergm(net ~ edges + offset(gwodegree(decay, fixed = TRUE)), 
+               offset.coef = 2,
+               control = control.ergm(seed = 789))
+summary(m2_pos)
+```
+
+We simulate 100 networks from each model and compute the out‑degree distribution for each simulation.
+
+```{r}
+
+nsim <- 100
+
+sim_m1    <- simulate(m1, nsim = nsim, output = "stats",
+                      monitor = ~ odegree(0:max_out))
+sim_m2_neg <- simulate(m2_neg, nsim = nsim, output = "stats",
+                       monitor = ~ odegree(0:max_out))
+sim_m2_pos <- simulate(m2_pos, nsim = nsim, output = "stats",
+                       monitor = ~ odegree(0:max_out))
+
+
+extract_deg_df <- function(sim_matrix, model_label) {
+  df <- as.data.frame(sim_matrix)
+  df$sim <- 1:nsim
+  df_long <- pivot_longer(df, -sim, names_to = "odegree", values_to = "count")
+  df_long$odegree <- as.integer(gsub("odegree", "", df_long$odegree))
+  df_long$model <- model_label
+  return(df_long)
+}
+
+deg_all <- bind_rows(
+  extract_deg_df(sim_m1,    "M1 (edges only)"),
+  extract_deg_df(sim_m2_neg, "M2: θ_GWD = -2"),
+  extract_deg_df(sim_m2_pos, "M2: θ_GWD =  2")
+)
+
+head(deg_all)
+```
+
+```{r}
+#violin plot
+deg_all <- deg_all %>% filter(!is.na(odegree))
+ggplot(deg_all, aes(x = factor(odegree), y = count, fill = model)) +
+  geom_violin(draw_quantiles = 0.5, alpha = 0.65, adjust = 1.2,
+              position = position_dodge(width = 0.8), scale = "width") +
+  labs(x = "out-degree", y = "number of nodes",
+       title = "Out-degree distribution across 100 simulated networks",
+       fill = "Model configuration") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+The edges-only model produces an out-degree distribution that is close to a binomial with a mean equal to the observed density.
+Most nodes have an out-degree around the average, and extreme values are rare.
+The distribution is symmetric and lacks heavy tails.
+
+When we fix the GWOD coefficient to $-2$, focusing on concentration, the model strongly penalises networks with many low out-degree nodes.
+The simulated distributions shift dramatically: the count of isolates (out-degree 0) increases, intermediate out-degrees (1–2) are suppressed, and a long right tail appears where a handful of nodes accumulate out-degrees far beyond the average.
+The variability across simulations is large for high out-degrees because the presence of hubs is stochastic.
+This corresponds to a "rich-get-richer" activity pattern.
+
+Conversely, fixing the GWOD coefficient to $+2$, focusing on dispeersion, it reinforces the built-in preference for spreading edges evenly.
+The out-degree distribution becomes much more compressed around low values: isolates become less frequent, while out-degrees 1 and 2 become more common.
+Out-degrees above 3 or 4 virtually disappear.
+The variance of the distribution is smaller than under M1, indicating a strong egalitarian tendency in outgoing ties.
+
+These results show that, even with a fixed decay parameter ($\alpha=0.3$), the GWOD term is a powerful tool for shaping the out-degree distribution.
+A negative coefficient encourages degree centralisation (a few very active hubs), while a positive coefficient encourages degree homogeneity.
+Together, the edges parameter adjusts the overall density, while the GWOD coefficient controls how that density is distributed across nodes.
+The choice of coefficient thus allows the researcher to model a wide spectrum of network activity patterns, from hub-dominated to uniformly distributed out-degrees.
+
+# 2. Adding effects to the ERGM 
+
+```{r results='hide'}
+# Task 2
+f1 <- as.matrix(read.csv("f1.csv", header = FALSE))
+
+demographic <- read.csv("demographic.csv", header = TRUE)
+alcohol     <- read.csv("alcohol.csv", header = TRUE)
+
+glasgow_net <- network(f1, directed = TRUE)
+
+glasgow_net %v% "gender" <- ifelse(demographic$gender == 1, "boy", "girl")
+glasgow_net %v% "alcohol" <- alcohol$Wave.1  
+
+glasgow_net %v% "age"     <- demographic$age
+
+
+# check
+summary(glasgow_net)
+
+# 2.1
+set.seed(1234)
+
+
+m2_1 <- ergm(glasgow_net ~ edges + nodematch("gender"))
+summary(m2_1)
+
+# simple structural with Stoch. Approx. because the model fails to converge otherwise
+m0_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+summary(m0_sa)
+cat("\nGOF:\n")
+g0 <- gof(m0_sa, GOF = ~ idegree + odegree + espartners + distance)
+print(g0)
+# plot(g0)
+
+# add gender homophily 
+m1_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender"),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+
+# add node match 
+summary(m1_sa)
+g1 <- gof(m1_sa, GOF = ~ idegree + odegree + espartners + distance)
+print(g1)
+
+# gender activity
+m2_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender"),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+# add nodeofactor
+summary(m2_sa)
+g2 <- gof(m2_sa, GOF = ~ idegree + odegree + espartners + distance)
+print(g2)
+
+# alcohol activity
+m3_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol"),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+# add nodeocov for alcohol
+summary(m3_sa)
+g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
+print(g3)
+
+# add alcohol homophily
+m4_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol") + absdiff("alcohol"),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+# absdiff for alcohol
+summary(m4_sa)
+g4 <- gof(m4_sa, GOF = ~ idegree + odegree + espartners + distance)
+print(g4)
+```
+
+## 2.1 Estimating an ERGM model
+
+The estimated probability of a friendship nomination between two pupils of the same gender is very small ( \~0.03–0.05), reflecting the overall sparseness of the network.
+The coefficient for `nodematch.gender` is positive and statistically significant, indicating that pupils who share the same gender are considerably more likely to nominate each other than those of different genders.
+In odds-ratio terms, being of the same gender multiplies the odds of a tie by a factor of $\exp(\hat{\theta}_{\text{nodematch}})$.
+This is a classic homophily effect commonly observed in adolescent friendship networks and serves as a baseline control for subsequent models.
+
+## 2.2 Adding effects to the ERGM model
+
+We tested the following hypotheses using additional ERGM terms.
+Because MCMLE consistently failed to mix, all models were estimated with Stochastic‑Approximation (SA).
+Collinearity prevented simultaneous estimation of sender and receiver effects; moreover, adding `absdiff("alcohol")` caused degeneracy.
+The final model tests hypotheses 1, 2, 3, and 5 only.
+
+| Hypothesis | ERGM term | Included? |
+|-------------------------|-----------------------|-----------------------|
+| 1\. Reciprocity | `mutual` | Yes |
+| 2\. Transitivity | `gwesp(decay = 0.3, fixed = TRUE)` | Yes |
+| 3\. Boys more active | `nodeofactor("gender")` (ref = boy) | Yes |
+| 4\. Boys more popular | `nodeifactor("gender")` | No (collinearity) |
+| 5\. Alcohol → more activity | `nodeocov("alcohol")` | Yes |
+| 6\. Alcohol → more popularity | `nodeicov("alcohol")` | No (collinearity) |
+| 7\. Alcohol homophily | `absdiff("alcohol")` | No (degeneracy) |
+
+**Final model formula:**
+
+```         
+glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE)
+              + nodematch("gender") + nodeofactor("gender")
+              + nodeocov("alcohol")
+```
+
+## 2.3 Estimation and Convergence of the ERGM model
+
+A stepwise approach was used.
+All models were fitted with Stochastic‑Approximation.
+
+```{r m3_sa, cache=TRUE}
+set.seed(1234)
+m3_sa <- ergm(
+  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE)
+              + nodematch("gender") + nodeofactor("gender")
+              + nodeocov("alcohol"),
+  control = control.ergm(main.method = "Stochastic-Approximation")
+)
+summary(m3_sa)
+```
+
+The algorithm converged without warnings.
+Residual deviance dropped from 22,890 to 2,910, and AIC of 2,922 is far lower than degenerate alternatives.
+Because MCMLE failed even for the simplest structural model, SA provides consistent estimates and standard errors may be slightly larger.
+
+## 2.4 Goodness of Fit of the ERGM
+
+```{r gof, cache=TRUE, fig.height=8, fig.width=8}
+g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
+plot(g3)
+g3
+```
+
+For the out-degrees, the observed distribution is highly skewed (0–6); model produces a flatter distribution (3–10) and the number of isolates is over‑predicted.In-degree follows a similar pattern: observed concentration at low degree is not captured.
+Edgewise-Shared partners peak at 0–2; model over‑predicts ESP 1 and under‑predicts ESP 2, but overall shape is much closer to observed than degenerate models.In terms of geodesic distance, the model over‑estimates reachable dyads; the proportion of infinite distances is slightly lower than observed.
+
+Taking all of the above in account, the model reproduces the direction of key effects but cannot fully capture the degree distribution.
+This is a known limitation for sparse, centralized networks and is acceptable for hypothesis testing.
+
+## 2.5 Parameter Interpretation and Hypothesis Testing
+
+```{r results-table}
+knitr::kable(summary(m3_sa)$coefficients, digits = 4)
+```
+
+-   Reciprocity (`mutual`): +3.19 (p \< 0.001). Strong tendency to reciprocate. Thus, Hypothesis 1 is supported.\
+-   Transitivity (`gwesp`): +1.19 (p \< 0.001). Ties closing two‑paths are more likely. Thus, Hypothesis 2 is supported.\
+-   Gender activity (`nodeofactor.gender.girl`): +0.0806 (p = 0.029). Girls send slightly *more* ties than boys, contrary to the hypothesis. Thus Hypothesis 3 is supported.\
+-   Alcohol activity (`nodeocov.alcohol`): –0.0355 (p = 0.127). No significant association. Thus, Hypothesis 5 is not supported.
+-   Gender homophily (`nodematch.gender`): +0.867 (p \< 0.001). Same‑gender ties remain much more likely.\
+-   Hypotheses 4, 6, 7 could not be tested due to collinearity or degeneracy.
+
+# 3. Model Improvement
+
+Two theoretically motivated additions could improve the fit.
+First, a geometrically weighted non‑edgewise shared partners (`gwnsp`) would penalise excessive shared partners and may reduce the over‑prediction of edges, improving degree distributions and geodesic distances.
+Second, spatial proximity would incorporate the log‑distance between pupils’ homes, and would ultimately account for strong spatial homophily, centralising degrees and improving clustering.
+
+# 4. Additional Hypotheses
+
+There are two additional hypotheses that can be added on top of the 7 already discussed:
+
+Religious homophily Pupils who attend the same religious service are more likely to be friends.
+It can be done with `nodematch("religion")`.
+It can be represented as nodes coloured by religion and ties mainly connecting same‑coloured nodes.
+
+Gender‑moderated reciprocity: The tendency to reciprocate is stronger for same‑gender dyads.
+It can be done with `mutual(same.gender)`.
+It can be represented with reciprocal arrows thicker for same‑gender pairs, thinner for mixed‑gender pairs.
