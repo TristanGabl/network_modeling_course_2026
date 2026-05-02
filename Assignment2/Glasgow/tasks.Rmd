@@ -241,7 +241,7 @@ A negative coefficient encourages degree centralisation (a few very active hubs)
 Together, the edges parameter adjusts the overall density, while the GWOD coefficient controls how that density is distributed across nodes.
 The choice of coefficient thus allows the researcher to model a wide spectrum of network activity patterns, from hub-dominated to uniformly distributed out-degrees.
 
-# 2. Adding effects to the ERGM 
+# 2. Adding effects to the ERGM
 
 ```{r results='hide'}
 # Task 2
@@ -336,7 +336,7 @@ Collinearity prevented simultaneous estimation of sender and receiver effects; m
 The final model tests hypotheses 1, 2, 3, and 5 only.
 
 | Hypothesis | ERGM term | Included? |
-|-------------------------|-----------------------|-----------------------|
+|----|----|----|
 | 1\. Reciprocity | `mutual` | Yes |
 | 2\. Transitivity | `gwesp(decay = 0.3, fixed = TRUE)` | Yes |
 | 3\. Boys more active | `nodeofactor("gender")` (ref = boy) | Yes |
@@ -369,9 +369,11 @@ m3_sa <- ergm(
 summary(m3_sa)
 ```
 
-The algorithm converged without warnings.
-Residual deviance dropped from 22,890 to 2,910, and AIC of 2,922 is far lower than degenerate alternatives.
-Because MCMLE failed even for the simplest structural model, SA provides consistent estimates and standard errors may be slightly larger.
+The final model was estimated using Stochastic‑Approximation with a burn‑in of 16,384 steps and an interval of 1,024.
+The algorithm converged without warnings and produced finite standard errors for all parameters.
+The residual deviance dropped from 22,890 (null model) to 5,029, and the AIC of 5,041 is far lower than any degenerate alternative encountered during stepwise selection.
+Because Monte Carlo MLE failed to mix even for the simplest structural specification, we rely on SA, which provides consistent estimates (Snijders et al. 2002); standard errors may be slightly larger than MCMLE standard errors would have been.
+We assess model adequacy via goodness‑of‑fit simulations in the following section.
 
 ## 2.4 Goodness of Fit of the ERGM
 
@@ -381,11 +383,19 @@ plot(g3)
 g3
 ```
 
-For the out-degrees, the observed distribution is highly skewed (0–6); model produces a flatter distribution (3–10) and the number of isolates is over‑predicted.In-degree follows a similar pattern: observed concentration at low degree is not captured.
-Edgewise-Shared partners peak at 0–2; model over‑predicts ESP 1 and under‑predicts ESP 2, but overall shape is much closer to observed than degenerate models.In terms of geodesic distance, the model over‑estimates reachable dyads; the proportion of infinite distances is slightly lower than observed.
+The observed out‑degrees are highly skewed, with nearly all nodes having between 0 and 6 outgoing ties.
+The model produces a flatter distribution, with many nodes in the moderate‑degree range (3–10) and far fewer nodes at the extremes.Isolates and very low out‑degree nodes are over‑predicted, while the sharp observed peak at out‑degree 2–3 is not reproduced.
+For the in-degrees, similar pattern holds.
+The observed in‑degrees are concentrated at 0–9, but the simulated in‑degree distribution spreads more evenly up to about 30, failing to capture the strong centralisation of incoming ties.
 
-Taking all of the above in account, the model reproduces the direction of key effects but cannot fully capture the degree distribution.
-This is a known limitation for sparse, centralized networks and is acceptable for hypothesis testing.
+The observed ESP distribution is concentrated at 0–2 shared partners, as expected in a sparse, clustered network.
+The model under‑predicts ESP0 (observed 137, simulated mean ≈ 119) and over‑predicts ESP1 (observed 167, simulated mean ≈ 224) and ESP2 (observed 92, simulated mean ≈ 178).
+Despite these quantitative mismatches, the overall shape – a peak at low shared‑partner counts – is far closer to the observed distribution than any of the degenerate models we encountered, which produced either nearly zero or thousands of shared partners.
+
+In terms of minimum geodesic distance, the model over‑estimates the reachable portion of the network; the average number of dyads at infinite distance (≈ 4122) is lower than the observed 4244.
+This indicates that the simulated networks are somewhat too connected in a few regions, but still largely fragmented, leaving most distant dyads unreachable.
+
+Overall, the model captures the direction and significance of key structural effects (reciprocity, transitivity, gender homophily), but does not fully reproduce the observed degree distributions or the precise distribution of shared partners.This is a known limitation of ERGMs for small, sparse, and centralized networks, and it is considered acceptable for hypothesis testing as long as the sign and significance of parameters are interpreted cautiously, while acknowledging that the model does not perfectly describe all features of the data.
 
 ## 2.5 Parameter Interpretation and Hypothesis Testing
 
@@ -393,12 +403,28 @@ This is a known limitation for sparse, centralized networks and is acceptable fo
 knitr::kable(summary(m3_sa)$coefficients, digits = 4)
 ```
 
--   Reciprocity (`mutual`): +3.19 (p \< 0.001). Strong tendency to reciprocate. Thus, Hypothesis 1 is supported.\
--   Transitivity (`gwesp`): +1.19 (p \< 0.001). Ties closing two‑paths are more likely. Thus, Hypothesis 2 is supported.\
--   Gender activity (`nodeofactor.gender.girl`): +0.0806 (p = 0.029). Girls send slightly *more* ties than boys, contrary to the hypothesis. Thus Hypothesis 3 is supported.\
--   Alcohol activity (`nodeocov.alcohol`): –0.0355 (p = 0.127). No significant association. Thus, Hypothesis 5 is not supported.
--   Gender homophily (`nodematch.gender`): +0.867 (p \< 0.001). Same‑gender ties remain much more likely.\
--   Hypotheses 4, 6, 7 could not be tested due to collinearity or degeneracy.
+-   Reciprocity (`mutual`): The coefficient is $+2.89$, highly significant $(p < 0.001)$.
+    The presence of a reciprocating tie multiplies the odds of a friendship nomination by $exp(2.89) ≈ 18.0$.
+    Hypothesis i is strongly supported.
+
+-   Transitivity (`gwesp`): The coefficient is $+1.96 (p < 0.001)$, indicating that ties that close open two‑paths are significantly more likely.
+    Hypothesis ii is supported.
+
+-   Gender activity (`nodeofactor.gender.girl`): The coefficient for girls (relative to boys as reference) is +1.29 and highly significant ($p < 0.001$).
+    This means that girls send significantly more friendship nominations than boys.
+    The hypothesis stated that boys would be more active; the data show the opposite.
+    Hypothesis iii is not supported.
+
+-   Alcohol activity (`nodeocov.alcohol`): The coefficient is $+0.095 (p = 0.007)$, indicating a positive and statistically significant association between a student’s alcohol consumption and the number of friendship nominations they send.
+    Pupils with higher alcohol consumption tend to be more active senders.
+    Hypothesis v is supported.
+
+-   Gender homophily (`nodematch.gender`): The coefficient is $+0.681 (p < 0.001)$.
+    Even after controlling for differential activity, pupils are much more likely to nominate friends of the same gender.
+    The homophily effect remains robust.
+
+-   Hypotheses 4, 6, 7 could not be tested because the corresponding terms (`nodeifactor`, `nodeicov`, `absdiff`) either caused collinearity or degeneracy when added.
+    Therefore, we cannot draw conclusions about gender popularity, alcohol popularity, or alcohol homophily.
 
 # 3. Model Improvement
 
