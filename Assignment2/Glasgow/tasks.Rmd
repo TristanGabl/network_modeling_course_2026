@@ -781,25 +781,98 @@ plot(gof_triad_res)
 plot(gof_beh_res)
 
 ```
-Alcohol behaviour distribution
+#### Alcohol behaviour distribution
 The model fits the marginal distribution of alcohol consumption almost perfectly (p = 0.772). The observed frequencies at each alcohol level lie squarely inside the simulated boxplots, indicating that the behavioural part of the model, which includes linear and quadratic shape as well as social influence effects, accurately captures the cross‑sectional pattern of alcohol use at wave 3.
 
-Out‑degree distribution
+#### Out‑degree distribution
 The out‑degree distribution shows a modest but statistically significant misfit (p = 0.024). The observed counts of nodes with low out‑degrees (0–3) are slightly over‑ or under‑predicted relative to the simulated median. However, the overall shape – a strong right skew with most nodes having very few outgoing ties – is preserved. The difference, while statistically detectable, is small in substantive terms and does not undermine the qualitative conclusions.
 
-In‑degree distribution
+#### In‑degree distribution
 The in‑degree distribution is well reproduced (p = 0.682). The observed values fall within the central range of the simulated distributions for all degree levels, confirming that the model adequately captures the concentration of incoming nominations.
 
-Triad census
+#### Triad census
 The triad census shows a large, significant discrepancy (p ≈ 0). This is not uncommon in SAOMs when only a simple transTrip effect is used, because the model tends to over‑ or under‑predict specific triad types (e.g., completely connected triads). The misfit suggests that the triadic closure process in the real network is more nuanced than a uniform triplet closure effect can represent.
 
-Geodesic distance distribution
+#### Geodesic distance distribution
 The geodesic distance distribution also displays a highly significant misfit (p ≈ 0). The model tends to over‑predict direct ties (distance 1) and under‑predict moderate distances (2–3), while the number of unreachable pairs (Inf) is reasonably close to the observed value. This pattern indicates that the model makes the network slightly too compact in local neighbourhoods, a typical consequence of using an unweighted transitivity term.
 
 Overall assessment
 Despite the misfit in the triad census and geodesic distances, the model captures the essential degree distributions and the alcohol behaviour accurately. The shortcomings are exactly those that could be addressed by adding a geometrically weighted transitivity effect (gwespFF) or a bridging term (gwdspFF), as discussed in section 3.3. Together with the good convergence and the interpretable parameter estimates, the fit is sufficient for a cautious testing of the co‑evolutionary hypotheses.
 
+### 3.2.4 Hypotheses iv–v and comparison with 3.1
 
+The co‑evolution model estimates two key behavioural effects.  
+Hypothesis iv (popularity → increase alcohol) could not be formally tested
+because the `effFrom` effect was not included in the specification;
+hence we focus on hypothesis v.
+
+**Hypothesis v: Adjust alcohol to friends (`avSim`)**  
+The average similarity effect on alcohol consumption is positive and highly
+significant (estimate = 6.39, SE = 1.76, p < 0.001). Pupils change their
+alcohol behaviour to become more similar to their friends – a classic
+social influence process. **Hypothesis v is therefore strongly supported.**
+
+**Comparison with the network‑only model (3.1)**  
+The network part of the co‑evolution model (effects 3‑10) retains the same
+structural and covariate effects as in 3.1, but alcohol similarity is now
+expressed via the behavioural dependent variable (`alcohol_dep similarity`).
+
+- **Alcohol similarity (selection):**  
+  `alcohol_dep similarity` = 1.65 (SE = 0.36, p < 0.001).  
+  This is larger than the constant‑covariate version (0.50) and shows that
+  the selection effect is robust even after accounting for simultaneous
+  influence. Pupils prefer friends with similar current alcohol consumption.
+
+- **Hypothesis i (indegree popularity):**  
+  Coefficient = 0.053 (p < 0.001), essentially unchanged from 0.056 in the
+  network‑only model. Popular pupils remain more attractive as friends.
+
+- **Hypothesis ii (alcohol similarity on tie formation):**  
+  Now captured by `alcohol_dep similarity` (above). The significance and
+  direction are consistent with the earlier finding.
+
+- **Hypothesis iii (spatial proximity):**  
+  `logdist_cov` = –0.200 (p < 0.001), very close to the previous –0.186.
+  Greater distance still strongly reduces friendship probability.
+
+- **Reciprocity, transitivity, gender homophily:**  
+  All remain strong and significant, with only minor numerical changes.
+
+In summary, the conclusions about hypotheses i–iii are unchanged by
+incorporating the behavioural dynamics. The joint model confirms that
+alcohol‑based selection and spatial proximity both shape friendship
+formation, while a simultaneous social influence process drives
+alcohol convergence among friends.
+
+### 3.2.5 Selection, influence, or both?
+
+The co‑evolution model allows us to disentangle two mechanisms that can
+produce similarity between friends:
+
+- **Selection** (friendship choice): `alcohol_dep similarity` on the
+  network evaluates whether pupils befriend others with the same alcohol
+  consumption.
+- **Influence** (behavioural adaptation): `average similarity` on alcohol
+  consumption evaluates whether pupils change their drinking to become
+  more like their friends.
+
+Both effects are positive and statistically significant:
+
+| Mechanism | Effect | Estimate | SE | p |
+|-----------|--------|----------|----|---|
+| Selection | alcohol_dep similarity | 1.65 | 0.36 | < 0.001 |
+| Influence | average similarity | 6.39 | 1.76 | < 0.001 |
+
+The data therefore provide clear evidence for **both** selection and
+influence operating simultaneously. Adolescents choose friends based in
+part on alcohol similarity, and once friendships are established, they
+influence each other’s drinking habits.
+
+This pattern indicates a *co‑evolutionary feedback loop*: alcohol use
+serves as a basis for friendship sorting, and friendship groups
+subsequently reinforce similar alcohol consumption through peer influence.
+Neither a pure selection‑only nor a pure influence‑only interpretation is
+sufficient to describe the observed dynamics.
 
 ### 3.3
 
