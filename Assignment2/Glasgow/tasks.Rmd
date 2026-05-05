@@ -29,6 +29,8 @@ library(sna)
 library(latticeExtra)   
 library(broom)
 library(texreg)
+library(RSiena)
+
 
 adj <- as.matrix(read.csv("f1.csv", header = FALSE))
 dim(adj)  
@@ -336,7 +338,7 @@ Collinearity prevented simultaneous estimation of sender and receiver effects; m
 The final model tests hypotheses 1, 2, 3, and 5 only.
 
 | Hypothesis | ERGM term | Included? |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | 1\. Reciprocity | `mutual` | Yes |
 | 2\. Transitivity | `gwesp(decay = 0.3, fixed = TRUE)` | Yes |
 | 3\. Boys more active | `nodeofactor("gender")` (ref = boy) | Yes |
@@ -426,13 +428,13 @@ knitr::kable(summary(m3_sa)$coefficients, digits = 4)
 -   Hypotheses 4, 6, 7 could not be tested because the corresponding terms (`nodeifactor`, `nodeicov`, `absdiff`) either caused collinearity or degeneracy when added.
     Therefore, we cannot draw conclusions about gender popularity, alcohol popularity, or alcohol homophily.
 
-# 3. Model Improvement
+## 2.6 Model Improvement
 
 Two theoretically motivated additions could improve the fit.
 First, a geometrically weighted non‑edgewise shared partners (`gwnsp`) would penalise excessive shared partners and may reduce the over‑prediction of edges, improving degree distributions and geodesic distances.
 Second, spatial proximity would incorporate the log‑distance between pupils’ homes, and would ultimately account for strong spatial homophily, centralising degrees and improving clustering.
 
-# 4. Additional Hypotheses
+## 2.7 Additional Hypotheses
 
 There are two additional hypotheses that can be added on top of the 7 already discussed:
 
@@ -443,3 +445,363 @@ It can be represented as nodes coloured by religion and ties mainly connecting s
 Gender‑moderated reciprocity: The tendency to reciprocate is stronger for same‑gender dyads.
 It can be done with `mutual(same.gender)`.
 It can be represented with reciprocal arrows thicker for same‑gender pairs, thinner for mixed‑gender pairs.
+
+# 3. Estimation and interpretation of SAOMs
+
+## 3.1 Friendship network as only dependent variable
+
+```{r data}
+
+f1 <- as.matrix(read.csv("f1.csv", header = FALSE))
+f2 <- as.matrix(read.csv("f2.csv", header = FALSE))
+f3 <- as.matrix(read.csv("f3.csv", header = FALSE))
+
+# siena
+friendship <- sienaDependent(array(c(f1, f2, f3), dim = c(129, 129, 3)))
+
+# alcohol
+alcohol      <- read.csv("alcohol.csv", header = TRUE)
+alcohol_mat  <- as.matrix(alcohol[, c("Wave.1", "Wave.2", "Wave.3")])
+alcohol_dep  <- sienaDependent(alcohol_mat, type = "behavior")
+
+# cov
+demographic  <- read.csv("demographic.csv", header = TRUE)
+# gender: 0 = boy, 1 = girl (centered = FALSE so that 0 is the reference)
+gender       <- coCovar(ifelse(demographic$gender == 1, 0, 1), centered = FALSE)
+
+# dyadic cov
+logdist      <- as.matrix(read.csv("logdistance.csv", header = FALSE))
+logdist_cov  <- coDyadCovar(logdist)
+
+# Data object for the co‑evolution analysis (already needed for 3.2,
+# but we’ll build the network‑only object inside 3.1)
+mydata_coev <- sienaDataCreate(friendship, alcohol_dep, gender, logdist_cov)
+mydata_coev
+```
+
+### 3.1.1 Jaccard Matrix
+
+```{r jaccard}
+# 1. Define the custom Jaccard function
+Jaccard <- function(net1, net2) {
+  # Count ties present in both waves (intersection)
+  intersection <- sum(net1 == 1 & net2 == 1, na.rm = TRUE)
+  # Count ties present in at least one wave (union)
+  union <- sum(net1 == 1 | net2 == 1, na.rm = TRUE)
+  
+  return(intersection / union)
+}
+
+# 2. Run your calculations
+j12 <- Jaccard(friendship[, , 1], friendship[, , 2])
+j23 <- Jaccard(friendship[, , 2], friendship[, , 3])
+j13 <- Jaccard(friendship[, , 1], friendship[, , 3])
+
+# 3. Print the results
+cat("Jaccard wave1-2:", round(j12, 3), "\n",
+    "Jaccard wave2-3:", round(j23, 3), "\n",
+    "Jaccard wave1-3:", round(j13, 3), "\n")
+```
+
+The Jaccard indices between successive waves are around 0.30–0.35, meaning that roughly one‑third of the friendship ties present at one wave are still present at the next wave. This is a moderate level of stability: pupils do not completely abandon their former friends within three months, but they also make many new nominations and drop existing ones. The index between the first and the third wave (0.23) is lower, which is expected because the longer time interval (six months) allows more cumulative turnover.
+
+None of the indices are extremely close to 0 (which would suggest almost random tie formation and no structural continuity) nor extremely close to 1 (which would indicate a virtually frozen network). Therefore, there is sufficient stability to identify the network evolution mechanisms, yet enough change to estimate the effects of interest. This amount of change is perfectly typical for adolescent friendship networks and fully supports the use of a Stochastic Actor‑Oriented Model.
+
+### 3.1.2 Model specification for hypotheses We build a SAOM for the friendship network with the following effects:
+
+-   Structural controls: `density` (outdegree), `recip` (reciprocity), `transTrip` (transitive triplets).
+-   Covariate‑related controls: `egoX`, `altX`, `sameX` for `gender`.
+-   Hypothesis i (popularity): `inPop` (indegree popularity).
+-   Hypothesis ii (alcohol similarity): `simX` with alcohol at wave 1 used as a constant covariate (because alcohol is only a single constant value here, not a changing behaviour; we will switch to the behavioural similarity effect in the co‑evolution model).
+-   Hypothesis iii (proximity): `X` with `logdist_cov` (expect negative).
+
+```{r net_data}
+# Use wave‑1 alcohol as a constant covariate for the network‑only analysis
+alc1 <- alcohol_mat[, 1]
+alc_cov <- coCovar(alc1, centered = TRUE)
+
+mydata_net <- sienaDataCreate(friendship, gender, alc_cov, logdist_cov)
+myeff_net  <- getEffects(mydata_net)
+
+# Structural + gender control
+myeff_net <- includeEffects(myeff_net, recip, transTrip,
+                            egoX, altX, sameX,
+                            interaction1 = "gender")
+
+# Hypothesis i: popularity (attractiveness of popular pupils)
+myeff_net <- includeEffects(myeff_net, inPop)
+
+# Hypothesis ii: alcohol similarity (constant covariate version)
+myeff_net <- includeEffects(myeff_net, simX, interaction1 = "alc_cov")
+
+# Hypothesis iii: spatial proximity
+myeff_net <- includeEffects(myeff_net, X, interaction1 = "logdist_cov")
+
+# Display the effects
+myeff_net
+```
+### 3.1.3 Estimation and convergence
+
+```{r net_est, cache=TRUE}
+alg_net <- sienaAlgorithmCreate(projname = "net_only", nsub = 4, n3 = 1000,
+                                seed = 1234)
+res_net <- siena07(alg_net, data = mydata_net, effects = myeff_net)
+
+summary(res_net)
+
+# Convergence check: t‑ratios should be < 0.1 (ideally) or < 0.15
+tconv_net <- res_net$tconv
+max(abs(tconv_net))
+```
+The algorithm converged without problems. The overall maximum convergence ratio is 0.119, comfortably below the threshold of 0.25, and all individual t‑ratios for convergence are small. The rate parameters indicate that a typical pupil makes about 8.9 changes in wave 1 and 7.5 changes in wave 2 – a substantial but plausible amount of friendship turnover. The parameter estimates are stable, and the standard errors are of reasonable size. We therefore proceed to interpret the coefficients.
+### 3.1.4 Goodness of fit
+
+```{r net_gof, cache=TRUE, fig.height=8, fig.width=8}
+alg_net_gof <- sienaAlgorithmCreate(projname = "net_gof",
+                                    nsub = 4, n3 = 1000,
+                                    seed = 1234)
+
+# Estimate from scratch (no prevAns) so that simulated networks are saved
+res_net_gof <- siena07(alg_net_gof, data = mydata_net, effects = myeff_net,
+                       returnDeps = TRUE)
+
+# Check that simulations were stored
+if (is.null(res_net_gof$sims)) {
+  stop("Simulations not returned – something is wrong.")
+}
+
+
+# Run GOF and plot for Outdegree Distribution
+gof_out <- sienaGOF(res_net_gof, OutdegreeDistribution, 
+                    varName = "friendship", verbose = FALSE)
+plot(gof_out)
+
+# Run GOF and plot for Indegree Distribution
+gof_in <- sienaGOF(res_net_gof, IndegreeDistribution, 
+                   varName = "friendship", verbose = FALSE)
+plot(gof_in)
+
+GeodesicDistribution <- function (i, obsData, sims, period, groupName,
+                                  varName, levls = c(1:5, Inf), cumulative = TRUE, ...) {
+  x <- networkExtraction(i, obsData, sims, period, groupName, varName)
+  require(sna)
+  a <- sna::geodist(symmetrize(x))$gdist
+  if (cumulative) {
+    gdi <- sapply(levls, function(i){ sum(a <= i) })
+  } else {
+    gdi <- sapply(levls, function(i){ sum(a == i) })
+  }
+  names(gdi) <- as.character(levls)
+  gdi
+}
+# Run GOF and plot for Geodesic Distribution
+gof_geo <- sienaGOF(res_net_gof, GeodesicDistribution, 
+                    varName = "friendship", verbose = FALSE)
+plot(gof_geo)
+
+# Run GOF and plot for Triad Census
+gof_triad <- sienaGOF(res_net_gof, TriadCensus, 
+                      varName = "friendship", verbose = FALSE)
+plot(gof_triad)
+```
+
+
+#### Out‑degree distribution
+The model captures the overall shape of the out‑degree distribution: most nodes have low out‑degree (0–5), and the observed counts lie within or very close to the simulated boxplots for the majority of degree values. There is a slight tendency to over‑predict the number of isolates (out‑degree 0) and under‑predict very high out‑degrees, but the deviations are modest.
+
+#### In‑degree distribution
+The fit is excellent for in‑degrees 0–8, with observed values falling near the median of the simulated distributions. The model slightly underpredicts the very highest in‑degrees (above 9), but because there are few nodes in that range, the discrepancy is not large. The overall p‑value for the in‑degree distribution is 0.442, confirming that the observed in‑degree frequencies cannot be distinguished from those produced by the model.
+
+#### Geodesic distance distribution
+The model reproduces the proportions of dyads at distances 1, 2, and 3 quite well, though it slightly over‑predicts distance 1 (direct ties) and under‑predicts distance 2. More noticeably, the observed number of unreachable pairs (distance Inf) is higher than the simulated median, but still within the lower part of the simulated distribution. This indicates that the model generates slightly too much connectivity, a common finding when the transitivity effect is specified as a simple triplet count without a decay parameter.
+
+#### Triad census
+The triad census frequencies are generally well reproduced. The observed values fall inside the simulated envelopes for all triad types, indicating that the model captures the overall pattern of triadic closure, mutual ties, and sparse dyads.
+
+#### Overall assessment
+The GOF diagnostics show that the model adequately represents the main structural features of the friendship network: the degree distributions, clustering, and distance structure are all close to the observed values. The minor misfits are in line with what is expected for a model that includes only a simple transitive‑triplets term and no degree‑weighted or bridging effects. The fit is sufficient to support the hypothesis tests presented in the section below.
+
+### 3.1.5 Hypothesis testing
+#### Hypothesis i (popular pupils attract more ties)
+The indegree – popularity effect is positive and significant (estimate = 0.056, p < 0.001). This means that pupils who already receive many friendship nominations are more likely to receive additional nominations compared to less popular pupils. In other words, popularity reinforces itself through a cumulative‑advantage process. This finding aligns with the hypothesis that popular students are particularly attractive as friends.
+
+#### Hypothesis ii (alcohol similarity promotes friendship)
+The alc_cov similarity effect is positive (0.503) and statistically significant (p ≈ 0.003). Pupils tend to be friends with others who have a similar level of alcohol consumption (measured at wave 1). This is a selection effect based on alcohol homophily. It suggests that alcohol use is an important dimension along which adolescents sort their friendships.
+
+#### Hypothesis iii (nearby living → friendship): SUPPORTED
+The logdist_cov effect is negative (–0.186) and significant (p < 0.001). As the logarithm of the distance between two pupils’ homes increases, the probability of a friendship tie drops markedly. This confirms that physical proximity is a strong predictor of friendship formation, even after controlling for structural processes and gender.
+
+Additional control effects
+
+Reciprocity is very strong (2.506) – friendships are overwhelmingly reciprocated.
+
+Same gender homophily is large (0.992) – a classic finding in adolescence.
+
+Gender ego and alter are not significant, so there is no evidence that boys systematically send or receive more ties than girls, once other factors are taken into account.
+
+In summary, all three focal hypotheses are supported by the data. The model provides a parsimonious and well‑fitting description of the friendship network evolution. The next sections will evaluate its goodness of fit and then extend the analysis to incorporate the co‑evolution of alcohol consumption.
+
+
+## 3.2 Co‑evolution of friendship and alcohol consumption
+
+### 3.2.1 Model specification
+
+We now model friendship ties and alcohol consumption jointly.
+The network part retains the same specification as in 3.1, except that alcohol similarity is now expressed via the behavioural dependent variable (`simX` with `alcohol_dep`), because alcohol can change across waves.
+
+For the behavioural part we include:
+
+-   Linear and quadratic shape (`lin`, `quad`).
+-   Popularity leading to alcohol increase: `effFrom` effect of indegree on alcohol:  A positive coefficient means that pupils with higher indegree tend to increase their alcohol consumption over time.
+-   Actors adjust their alcohol consumption to their friends `avSim` (average similarity) effect:  A positive coefficient indicates that pupils change their alcohol consumption to become more similar to their friends.
+
+```{r coev_spec}
+myeff_coev <- getEffects(mydata_coev)
+
+# Network effects (same structure as 3.1, but using alcohol_dep for similarity)
+myeff_coev <- includeEffects(myeff_coev, recip, transTrip,
+                             egoX, altX, sameX,
+                             interaction1 = "gender")
+myeff_coev <- includeEffects(myeff_coev, inPop)
+myeff_coev <- includeEffects(myeff_coev, simX,
+                             interaction1 = "alcohol_dep")
+myeff_coev <- includeEffects(myeff_coev, X,
+                             interaction1 = "logdist_cov")
+
+# Behavioural effects
+myeff_coev <- includeEffects(myeff_coev, lin, quad,
+                             name = "alcohol_dep")
+myeff_coev <- includeEffects(myeff_coev, effFrom,
+                             name = "alcohol_dep",
+                             interaction1 = "friendship",
+                             interaction2 = "indeg")
+myeff_coev <- includeEffects(myeff_coev, avSim,
+                             name = "alcohol_dep",
+                             interaction1 = "friendship")
+
+myeff_coev
+```
+
+### 3.2.2 Estimation and convergence
+```{r coev_est, cache=TRUE}
+alg_coev <- sienaAlgorithmCreate(projname = "coev", nsub = 4, n3 = 1000,
+                                 seed = 1234)
+res_coev <- siena07(alg_coev, data = mydata_coev, effects = myeff_coev)
+
+summary(res_coev)
+
+# Convergence
+max(abs(res_coev$tconv))
+```
+
+### 3.2.3 Goodness of fit
+```{r coev_gof, cache=TRUE, fig.height=8, fig.width=8}
+
+
+# 0. Ensure the model is estimated with simulated networks
+alg_coev_gof <- sienaAlgorithmCreate(projname = "coev_gof",
+                                     nsub = 4, n3 = 1000,
+                                     seed = 1234)
+res_coev_gof <- siena07(alg_coev_gof, data = mydata_coev, effects = myeff_coev,
+                        returnDeps = TRUE)
+
+if (is.null(res_coev_gof$sims)) stop("Simulations not returned – rerun with returnDeps = TRUE.")
+
+# 1. Define auxiliary functions with FIXED levels
+OutdegreeDistribution <- function (i, obsData, sims, period, groupName,
+                                   varName, levls = 0:129, cumulative = TRUE, ...) {
+  x <- networkExtraction(i, obsData, sims, period, groupName, varName)
+  a <- rowSums(as.matrix(x))
+  if (cumulative) {
+    out <- sapply(levls, function(l) sum(a <= l))
+  } else {
+    out <- sapply(levls, function(l) sum(a == l))
+  }
+  names(out) <- as.character(levls)
+  out
+}
+
+IndegreeDistribution <- function (i, obsData, sims, period, groupName,
+                                  varName, levls = 0:129, cumulative = TRUE, ...) {
+  x <- networkExtraction(i, obsData, sims, period, groupName, varName)
+  a <- colSums(as.matrix(x))
+  if (cumulative) {
+    out <- sapply(levls, function(l) sum(a <= l))
+  } else {
+    out <- sapply(levls, function(l) sum(a == l))
+  }
+  names(out) <- as.character(levls)
+  out
+}
+
+GeodesicDistribution <- function (i, obsData, sims, period, groupName,
+                                  varName, levls = c(1:5, Inf), cumulative = TRUE, ...) {
+  x <- networkExtraction(i, obsData, sims, period, groupName, varName)
+  require(sna)
+  a <- sna::geodist(symmetrize(x))$gdist
+  if (cumulative) {
+    gdi <- sapply(levls, function(l) sum(a <= l))
+  } else {
+    gdi <- sapply(levls, function(l) sum(a == l))
+  }
+  names(gdi) <- as.character(levls)
+  gdi
+}
+
+# Behavior distribution (alcohol, levels 1–5)
+BehaviorDistribution <- function (i, obsData, sims, period, groupName,
+                                  varName, levls = 1:5, cumulative = TRUE, ...) {
+  x <- behaviorExtraction(i, obsData, sims, period, groupName, varName)
+  if (cumulative) {
+    out <- sapply(levls, function(l) sum(x <= l))
+  } else {
+    out <- sapply(levls, function(l) sum(x == l))
+  }
+  names(out) <- as.character(levls)
+  out
+}
+
+# 2. Run GOFs
+gof_out_res  <- sienaGOF(res_coev_gof, OutdegreeDistribution, 
+                         varName = "friendship", verbose = FALSE)
+gof_in_res   <- sienaGOF(res_coev_gof, IndegreeDistribution, 
+                         varName = "friendship", verbose = FALSE)
+gof_geo_res  <- sienaGOF(res_coev_gof, GeodesicDistribution, 
+                         varName = "friendship", verbose = FALSE)
+gof_triad_res <- sienaGOF(res_coev_gof, TriadCensus, 
+                          varName = "friendship", verbose = FALSE)
+gof_beh_res  <- sienaGOF(res_coev_gof, BehaviorDistribution, 
+                         varName = "alcohol_dep", verbose = FALSE)
+
+# Plot
+plot(gof_out_res)
+plot(gof_in_res)
+plot(gof_geo_res)
+plot(gof_triad_res)
+plot(gof_beh_res)
+
+```
+Alcohol behaviour distribution
+The model fits the marginal distribution of alcohol consumption almost perfectly (p = 0.772). The observed frequencies at each alcohol level lie squarely inside the simulated boxplots, indicating that the behavioural part of the model, which includes linear and quadratic shape as well as social influence effects, accurately captures the cross‑sectional pattern of alcohol use at wave 3.
+
+Out‑degree distribution
+The out‑degree distribution shows a modest but statistically significant misfit (p = 0.024). The observed counts of nodes with low out‑degrees (0–3) are slightly over‑ or under‑predicted relative to the simulated median. However, the overall shape – a strong right skew with most nodes having very few outgoing ties – is preserved. The difference, while statistically detectable, is small in substantive terms and does not undermine the qualitative conclusions.
+
+In‑degree distribution
+The in‑degree distribution is well reproduced (p = 0.682). The observed values fall within the central range of the simulated distributions for all degree levels, confirming that the model adequately captures the concentration of incoming nominations.
+
+Triad census
+The triad census shows a large, significant discrepancy (p ≈ 0). This is not uncommon in SAOMs when only a simple transTrip effect is used, because the model tends to over‑ or under‑predict specific triad types (e.g., completely connected triads). The misfit suggests that the triadic closure process in the real network is more nuanced than a uniform triplet closure effect can represent.
+
+Geodesic distance distribution
+The geodesic distance distribution also displays a highly significant misfit (p ≈ 0). The model tends to over‑predict direct ties (distance 1) and under‑predict moderate distances (2–3), while the number of unreachable pairs (Inf) is reasonably close to the observed value. This pattern indicates that the model makes the network slightly too compact in local neighbourhoods, a typical consequence of using an unweighted transitivity term.
+
+Overall assessment
+Despite the misfit in the triad census and geodesic distances, the model captures the essential degree distributions and the alcohol behaviour accurately. The shortcomings are exactly those that could be addressed by adding a geometrically weighted transitivity effect (gwespFF) or a bridging term (gwdspFF), as discussed in section 3.3. Together with the good convergence and the interpretable parameter estimates, the fit is sufficient for a cautious testing of the co‑evolutionary hypotheses.
+
+
+
+### 3.3
+
+
+### 3.4 
