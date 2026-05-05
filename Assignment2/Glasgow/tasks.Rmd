@@ -19,7 +19,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
-                      fig.width = 5, fig.height = 5, fig.align = "center")
+                      fig.width = 7, fig.height = 7, fig.align = "center")
 library(ergm)
 library(network)
 library(ggplot2)
@@ -298,7 +298,7 @@ print(g4)
 summary(m3_sa)
 ```
 
-```{r final_gof, fig.height=5, fig.width=5}
+```{r final_gof, fig.height=7, fig.width=7}
 g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
 plot(g3)
 ```
@@ -365,7 +365,7 @@ g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
 plot(g3)
 g3
 ```
-``` {r gofg3,  fig.height=8, fig.width=8}
+``` {r gofg3,  fig.height=7, fig.width=7}
 plot(g3)
 ```
 The observed out‑degrees are highly skewed, with nearly all nodes having between 0 and 6 outgoing ties.
@@ -692,11 +692,11 @@ similarity effect that tests hypothesis v.
 
 ### 3.2.3 Goodness of fit
 
-```{r coev_gof_est, results='hide', cache=TRUE}
+```{r coev_gof_est, results='hide'}
 alg_coev_gof <- sienaAlgorithmCreate(projname = "coev_gof", nsub = 4, n3 = 1000, seed = 1234)
 res_coev_gof <- siena07(alg_coev_gof, data = mydata_coev, effects = myeff_coev, returnDeps = TRUE)
 ```
-```{r coev_gof, cache=TRUE, results='hide'}
+```{r coev_gof, results='hide'}
 
 
 if (is.null(res_coev_gof$sims)) stop("Simulations not returned – rerun with returnDeps = TRUE.")
@@ -729,14 +729,15 @@ IndegreeDistribution <- function (i, obsData, sims, period, groupName,
 }
 
 GeodesicDistribution <- function (i, obsData, sims, period, groupName,
-                                  varName, levls = c(1:5, Inf), cumulative = TRUE, ...) {
+                                  varName, levls = c(1:5, Inf), cumulative = FALSE, ...) {
   x <- networkExtraction(i, obsData, sims, period, groupName, varName)
   require(sna)
   a <- sna::geodist(symmetrize(x))$gdist
+  diag(a) <- NA
   if (cumulative) {
-    gdi <- sapply(levls, function(l) sum(a <= l))
+    gdi <- sapply(levls, function(l) sum(a <= l, na.rm = TRUE))
   } else {
-    gdi <- sapply(levls, function(l) sum(a == l))
+    gdi <- sapply(levls, function(l) sum(a == l, na.rm = TRUE))
   }
   names(gdi) <- as.character(levls)
   gdi
@@ -763,11 +764,10 @@ gof_in_res   <- sienaGOF(res_coev_gof, IndegreeDistribution,
 gof_geo_res  <- sienaGOF(res_coev_gof, GeodesicDistribution, 
                          varName = "friendship", verbose = FALSE)
 gof_triad_res <- sienaGOF(res_coev_gof, TriadCensus, 
-                          varName = "friendship", verbose = FALSE, levls = 0:20)
+                          varName = "friendship", verbose = FALSE)
 gof_beh_res  <- sienaGOF(res_coev_gof, BehaviorDistribution, 
                          varName = "alcohol_dep", verbose = FALSE, levls = 0:20)
 
-# Plot
 
 ```
 
