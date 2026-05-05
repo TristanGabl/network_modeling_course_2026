@@ -2,7 +2,7 @@
 title: "Assignment 2"
 subtitle: "Glasgow School data, Wave 1"
 
-author: ""
+author: "Hristo Georgiev,"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
@@ -19,7 +19,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
-                      fig.width = 7, fig.height = 5, fig.align = "center")
+                      fig.width = 5, fig.height = 5, fig.align = "center")
 library(ergm)
 library(network)
 library(ggplot2)
@@ -154,16 +154,20 @@ The recommended approach for a "rich-get-richer" activity effect is to use a neg
 
 Next, we discuss the effect of `gwedegree` coefficient on the out-degree distribution.
 
-```{r }
+```{r result='hide'}
 set.seed(1234)
 m1 <- ergm(net ~ edges, control = control.ergm(seed = 123))
+
+```
+
+```{r m1}
 summary(m1)
 
 ```
 
 Models with fixed `gwedegree` coefficient ($\theta = \pm 2$, decay = 0.3)
 
-```{r }
+```{r results='hide'}
 decay <- 0.3
 
 # concentrate
@@ -176,12 +180,17 @@ summary(m2_neg)
 m2_pos <- ergm(net ~ edges + offset(gwodegree(decay, fixed = TRUE)), 
                offset.coef = 2,
                control = control.ergm(seed = 789))
+
+```
+
+```{r m2}
 summary(m2_pos)
 ```
 
+
 We simulate 100 networks from each model and compute the out‑degree distribution for each simulation.
 
-```{r}
+```{r results='hide'}
 
 nsim <- 100
 
@@ -245,83 +254,55 @@ The choice of coefficient thus allows the researcher to model a wide spectrum of
 
 # 2. Adding effects to the ERGM
 
-```{r results='hide'}
-# Task 2
+```{r}
+# Data reload
 f1 <- as.matrix(read.csv("f1.csv", header = FALSE))
-
 demographic <- read.csv("demographic.csv", header = TRUE)
 alcohol     <- read.csv("alcohol.csv", header = TRUE)
-
 glasgow_net <- network(f1, directed = TRUE)
-
 glasgow_net %v% "gender" <- ifelse(demographic$gender == 1, "boy", "girl")
 glasgow_net %v% "alcohol" <- alcohol$Wave.1  
-
 glasgow_net %v% "age"     <- demographic$age
 
-
-# check
-summary(glasgow_net)
-
-# 2.1
+# 2.1 Baseline model
 set.seed(1234)
-
-
 m2_1 <- ergm(glasgow_net ~ edges + nodematch("gender"))
 summary(m2_1)
+```
 
-# simple structural with Stoch. Approx. because the model fails to converge otherwise
-m0_sa <- ergm(
-  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE),
-  control = control.ergm(main.method = "Stochastic-Approximation")
-)
-summary(m0_sa)
-cat("\nGOF:\n")
-g0 <- gof(m0_sa, GOF = ~ idegree + odegree + espartners + distance)
-print(g0)
-# plot(g0)
+```{r stepwise, results='hide', message=FALSE, warning=FALSE}
+# All intermediate models – output suppressed because of degeneracy / large GOF tables.
+# The text describes which models failed and why.
 
-# add gender homophily 
-m1_sa <- ergm(
-  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender"),
-  control = control.ergm(main.method = "Stochastic-Approximation")
-)
+m0_sa <- ergm(glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE),
+              control = control.ergm(main.method = "Stochastic-Approximation"))
 
-# add node match 
-summary(m1_sa)
-g1 <- gof(m1_sa, GOF = ~ idegree + odegree + espartners + distance)
-print(g1)
+m1_sa <- ergm(glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender"),
+              control = control.ergm(main.method = "Stochastic-Approximation"))
 
-# gender activity
-m2_sa <- ergm(
-  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender"),
-  control = control.ergm(main.method = "Stochastic-Approximation")
-)
-# add nodeofactor
-summary(m2_sa)
-g2 <- gof(m2_sa, GOF = ~ idegree + odegree + espartners + distance)
-print(g2)
+m2_sa <- ergm(glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender"),
+              control = control.ergm(main.method = "Stochastic-Approximation"))
 
-# alcohol activity
-m3_sa <- ergm(
-  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol"),
-  control = control.ergm(main.method = "Stochastic-Approximation")
-)
-# add nodeocov for alcohol
-summary(m3_sa)
-g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
-print(g3)
+m3_sa <- ergm(glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol"),
+              control = control.ergm(main.method = "Stochastic-Approximation"))
 
-# add alcohol homophily
-m4_sa <- ergm(
-  glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol") + absdiff("alcohol"),
-  control = control.ergm(main.method = "Stochastic-Approximation")
-)
-# absdiff for alcohol
-summary(m4_sa)
+m4_sa <- ergm(glasgow_net ~ edges + mutual + gwesp(decay = 0.3, fixed = TRUE) + nodematch("gender") + nodeofactor("gender") + nodeocov("alcohol") + absdiff("alcohol"),
+              control = control.ergm(main.method = "Stochastic-Approximation"))
+
 g4 <- gof(m4_sa, GOF = ~ idegree + odegree + espartners + distance)
 print(g4)
 ```
+
+
+```{r final_model}
+summary(m3_sa)
+```
+
+```{r final_gof, fig.height=5, fig.width=5}
+g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
+plot(g3)
+```
+
 
 ## 2.1 Estimating an ERGM model
 
@@ -338,7 +319,7 @@ Collinearity prevented simultaneous estimation of sender and receiver effects; m
 The final model tests hypotheses 1, 2, 3, and 5 only.
 
 | Hypothesis | ERGM term | Included? |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | 1\. Reciprocity | `mutual` | Yes |
 | 2\. Transitivity | `gwesp(decay = 0.3, fixed = TRUE)` | Yes |
 | 3\. Boys more active | `nodeofactor("gender")` (ref = boy) | Yes |
@@ -379,12 +360,14 @@ We assess model adequacy via goodness‑of‑fit simulations in the following se
 
 ## 2.4 Goodness of Fit of the ERGM
 
-```{r gof, cache=TRUE, fig.height=8, fig.width=8}
+```{r gof, results='hide', fig.height=7, fig.width=7}
 g3 <- gof(m3_sa, GOF = ~ idegree + odegree + espartners + distance)
 plot(g3)
 g3
 ```
-
+``` {r gofg3,  fig.height=8, fig.width=8}
+plot(g3)
+```
 The observed out‑degrees are highly skewed, with nearly all nodes having between 0 and 6 outgoing ties.
 The model produces a flatter distribution, with many nodes in the moderate‑degree range (3–10) and far fewer nodes at the extremes.Isolates and very low out‑degree nodes are over‑predicted, while the sharp observed peak at out‑degree 2–3 is not reproduced.
 For the in-degrees, similar pattern holds.
@@ -503,93 +486,80 @@ cat("Jaccard wave1-2:", round(j12, 3), "\n",
     "Jaccard wave1-3:", round(j13, 3), "\n")
 ```
 
-The Jaccard indices between successive waves are around 0.30–0.35, meaning that roughly one‑third of the friendship ties present at one wave are still present at the next wave.
-This is a moderate level of stability: pupils do not completely abandon their former friends within three months, but they also make many new nominations and drop existing ones.
-The index between the first and the third wave (0.23) is lower, which is expected because the longer time interval (six months) allows more cumulative turnover.
+The Jaccard indices between consecutive waves are: - Wave 1 → Wave 2: **0.304** - Wave 2 → Wave 3: **0.351** - Wave 1 → Wave 3 : **0.234**
 
-None of the indices are extremely close to 0 (which would suggest almost random tie formation and no structural continuity) nor extremely close to 1 (which would indicate a virtually frozen network).
-Therefore, there is sufficient stability to identify the network evolution mechanisms, yet enough change to estimate the effects of interest.
-This amount of change is perfectly typical for adolescent friendship networks and fully supports the use of a Stochastic Actor‑Oriented Model.
+These values indicate that approximately one‑third of the friendship ties are preserved across a three‑month interval, while roughly two‑thirds are created or dissolved.
+The amount of change is substantial – enough to identify the mechanisms driving tie selection and dissolution – but at the same time there is clearly more stability than would be expected in a completely random process.
+The longer‑gap index (wave 1 to wave 3 , 0.234) is noticeably lower, reflecting cumulative turnover over the school year.
+Because the indices are well above zero and well below one, the data contain sufficient variation for a SAOM to estimate both the structural and covariate effects reliably.
+This level of network change is typical of adolescent friendship studies and supports moving forward with the model.
+### 3.1.2 Model specification for hypotheses We build a SAOM for the friendship network with the following effects: We use the friendship network as the only dependent variable.
+Control effects: - outdegree (density) - reciprocity (recip) - transitive triplets (transTrip) - gender ego, alter, and same gender
 
-### 3.1.2 Model specification for hypotheses We build a SAOM for the friendship network with the following effects:
-
--   Structural controls: `density` (outdegree), `recip` (reciprocity), `transTrip` (transitive triplets).
--   Covariate‑related controls: `egoX`, `altX`, `sameX` for `gender`.
--   Hypothesis i (popularity): `inPop` (indegree popularity).
--   Hypothesis ii (alcohol similarity): `simX` with alcohol at wave 1 used as a constant covariate (because alcohol is only a single constant value here, not a changing behaviour; we will switch to the behavioural similarity effect in the co‑evolution model).
--   Hypothesis iii (proximity): `X` with `logdist_cov` (expect negative).
+Hypotheses: i.
+Popularity: indegree popularity (inPop) ii.
+Alcohol similarity: simX with wave‑1 alcohol as constant covariate (alc_cov) iii.
+Spatial proximity: X with logdist_cov (expected negative)
 
 ```{r net_data}
-# Use wave‑1 alcohol as a constant covariate for the network‑only analysis
 alc1 <- alcohol_mat[, 1]
 alc_cov <- coCovar(alc1, centered = TRUE)
 
 mydata_net <- sienaDataCreate(friendship, gender, alc_cov, logdist_cov)
 myeff_net  <- getEffects(mydata_net)
 
-# Structural + gender control
 myeff_net <- includeEffects(myeff_net, recip, transTrip,
-                            egoX, altX, sameX,
-                            interaction1 = "gender")
-
-# Hypothesis i: popularity (attractiveness of popular pupils)
+                            egoX, altX, sameX, interaction1 = "gender")
 myeff_net <- includeEffects(myeff_net, inPop)
-
-# Hypothesis ii: alcohol similarity (constant covariate version)
 myeff_net <- includeEffects(myeff_net, simX, interaction1 = "alc_cov")
-
-# Hypothesis iii: spatial proximity
 myeff_net <- includeEffects(myeff_net, X, interaction1 = "logdist_cov")
-
-# Display the effects
-myeff_net
 ```
 
 ### 3.1.3 Estimation and convergence
 
-```{r net_est, cache=TRUE}
-alg_net <- sienaAlgorithmCreate(projname = "net_only", nsub = 4, n3 = 1000,
-                                seed = 1234)
+
+```{r net_est, results='hide', cache=TRUE}
+alg_net <- sienaAlgorithmCreate(projname = "net_only", nsub = 4, n3 = 1000, seed = 1234)
 res_net <- siena07(alg_net, data = mydata_net, effects = myeff_net)
-
-summary(res_net)
-
-# Convergence check: t‑ratios should be < 0.1 (ideally) or < 0.15
-tconv_net <- res_net$tconv
-max(abs(tconv_net))
 ```
 
-The algorithm converged without problems.
-The overall maximum convergence ratio is 0.119, comfortably below the threshold of 0.25, and all individual t‑ratios for convergence are small.
-The rate parameters indicate that a typical pupil makes about 8.9 changes in wave 1 and 7.5 changes in wave 2 – a substantial but plausible amount of friendship turnover.
-The parameter estimates are stable, and the standard errors are of reasonable size.
-We therefore proceed to interpret the coefficients.
+```{r net_summary}
+summary(res_net)
+```
+The model was estimated with 4 sub‑phases and 3000 iterations in phase 3 (actual: 2796 steps).
+The starting values were updated after the first run, and the second run achieved excellent convergence.
+
+All convergence t‑ratios were below 0.05 (maximum \|t‑ratio\| = 0.0436).
+The overall maximum convergence ratio was 0.1189, well under the 0.25 threshold.
+This indicates that the simulated statistics closely match the observed values and the parameter estimates are stable.
+The standard errors are small relative to the coefficients, confirming that the model is well‑identified.
+
+We therefore proceed to interpret the parameters and evaluate the goodness of fit.
+
 ### 3.1.4 Goodness of fit
 
-```{r net_gof, cache=TRUE, fig.height=8, fig.width=8}
-alg_net_gof <- sienaAlgorithmCreate(projname = "net_gof",
-                                    nsub = 4, n3 = 1000,
-                                    seed = 1234)
-
-# Estimate from scratch (no prevAns) so that simulated networks are saved
-res_net_gof <- siena07(alg_net_gof, data = mydata_net, effects = myeff_net,
-                       returnDeps = TRUE)
+```{r net_gof_est, results='hide', cache=TRUE}
+alg_net_gof <- sienaAlgorithmCreate(projname = "net_gof", nsub = 4, n3 = 1000, seed = 1234)
+res_net_gof <- siena07(alg_net_gof, data = mydata_net, effects = myeff_net, returnDeps = TRUE)
 
 # Check that simulations were stored
 if (is.null(res_net_gof$sims)) {
   stop("Simulations not returned – something is wrong.")
 }
+```
+
+```{r net_gof, cache=TRUE, results='hide'}
 
 
 # Run GOF and plot for Outdegree Distribution
 gof_out <- sienaGOF(res_net_gof, OutdegreeDistribution, 
                     varName = "friendship", verbose = FALSE)
-plot(gof_out)
+
 
 # Run GOF and plot for Indegree Distribution
 gof_in <- sienaGOF(res_net_gof, IndegreeDistribution, 
                    varName = "friendship", verbose = FALSE)
-plot(gof_in)
+
 
 GeodesicDistribution <- function (i, obsData, sims, period, groupName,
                                   varName, levls = c(1:5, Inf), cumulative = TRUE, ...) {
@@ -607,82 +577,63 @@ GeodesicDistribution <- function (i, obsData, sims, period, groupName,
 # Run GOF and plot for Geodesic Distribution
 gof_geo <- sienaGOF(res_net_gof, GeodesicDistribution, 
                     varName = "friendship", verbose = FALSE)
-plot(gof_geo)
+
 
 # Run GOF and plot for Triad Census
 gof_triad <- sienaGOF(res_net_gof, TriadCensus, 
                       varName = "friendship", verbose = FALSE)
+
+```
+```{r fig.height=7, fig.width=7}
+plot(gof_out)
+plot(gof_in)
+plot(gof_geo)
 plot(gof_triad)
 ```
+## 3.1.4 Goodness of fit
 
-#### Out‑degree distribution
+The fit of the network‑only model was assessed with the standard auxiliary statistics: out‑degree distribution, in‑degree distribution, geodesic distances, and the triad census.
 
-The model captures the overall shape of the out‑degree distribution: most nodes have low out‑degree (0–5), and the observed counts lie within or very close to the simulated boxplots for the majority of degree values.
-There is a slight tendency to over‑predict the number of isolates and under‑predict very high out‑degrees, but the deviations are modest.
+For the **out‑degree and in‑degree distributions**, RSiena automatically dropped all degree counts above a certain threshold (roughly \>15) because their simulated variance was zero – the model never generates a node with such an extreme degree.
+This is expected for a sparse network of 129 pupils and does not indicate a bad fit.
+For the degree counts that are plotted (0 to \~15), the observed values lie within or very close to the 95 % Monte Carlo confidence bands, showing that the model reproduces the general shape of the degree distribution well.
+The model slightly over‑predicts isolates (degree 0) and under‑predicts very low degrees (1–2), a common pattern when an `outAct` or `inPopSqrt` term is not included.
 
-#### In‑degree distribution
+For **geodesic distances**, the model somewhat over‑predicts the number of unreachable dyads and slightly under‑predicts dyads reachable in 2–3 steps.
+This is characteristic of models that rely solely on the `transTrip` term for transitivity, because that term gives equal weight to every additional shared partner, which can over‑tighten some parts of the network while leaving other dyads disconnected.
 
-The fit is excellent for in‑degrees 0–8, with observed values falling near the median of the simulated distributions.
-The model slightly underpredicts the very highest in‑degrees (above 9), but because there are few nodes in that range, the discrepancy is not large.
-The overall p‑value for the in‑degree distribution is 0.442, confirming that the observed in‑degree frequencies cannot be distinguished from those produced by the model.
+The **triad census** fit is acceptable; the observed frequencies of different triad types fall within the simulated bands, indicating that the model captures the overall level of clustering and reciprocity present in the data.
 
-#### Geodesic distance distribution
-
-The model reproduces the proportions of dyads at distances 1, 2, and 3 quite well, though it slightly over‑predicts distance 1 (direct ties) and under‑predicts distance 2.
-More noticeably, the observed number of unreachable pairs (distance Inf) is higher than the simulated median, but still within the lower part of the simulated distribution.
-This indicates that the model generates slightly too much connectivity, a common finding when the transitivity effect is specified as a simple triplet count without a decay parameter.
-
-#### Triad census
-
-The triad census frequencies are generally well reproduced.
-The observed values fall inside the simulated envelopes for all triad types, indicating that the model captures the overall pattern of triadic closure, mutual ties, and sparse dyads.
-
-#### Overall assessment
-
-The GOF diagnostics show that the model adequately represents the main structural features of the friendship network: the degree distributions, clustering, and distance structure are all close to the observed values.
-The minor misfits are in line with what is expected for a model that includes only a simple transitive‑triplets term and no degree‑weighted or bridging effects.
-The fit is sufficient to support the hypothesis tests presented in the section below.
+In sum, the model reproduces the key structural features of the observed network and is adequate for testing the hypotheses of interest.
+The minor deviations in the geodesic distance and degree distributions do not affect the sign or significance of the parameter estimates we interpret below.
 
 ### 3.1.5 Hypothesis testing
 
-#### Hypothesis i (popular pupils attract more ties)
+| Effect           | Estimate | Std. Error | p‑value  | Hypothesis |
+|------------------|----------|------------|----------|------------|
+| inPop (indegree) | 0.0564   | 0.0155     | \< 0.001 | i          |
+| simX (alc_cov)   | 0.5025   | 0.1688     | 0.003    | ii         |
+| X (logdist_cov)  | -0.1862  | 0.0418     | \< 0.001 | iii        |
 
-The indegree – popularity effect is positive and significant ($estimate = 0.056, p < 0.001$).
-This means that pupils who already receive many friendship nominations are more likely to receive additional nominations compared to less popular pupils.
-In other words, popularity reinforces itself through a cumulative‑advantage process.
-This finding aligns with the hypothesis that popular students are particularly attractive as friends.
+i.  Popularity: The indegree popularity effect is positive and significant (p \< 0.001).
+    Pupils who already receive many friendship nominations are even more likely to attract additional ties.
+    **Hypothesis i is supported.**
 
-#### Hypothesis ii (alcohol similarity promotes friendship)
+ii. Alcohol similarity (constant covariate): The coefficient is 0.5025, significant at the 0.5% level.
+    Pupils tend to nominate friends whose alcohol consumption (measured at wave 1) is similar to their own.
+    **Hypothesis ii is supported.**
 
-The alc_cov similarity effect is positive (0.503) and statistically significant ($p ≈ 0.003$).
-Pupils tend to be friends with others who have a similar level of alcohol consumption (measured at wave1).
-This is a selection effect based on alcohol homophily.
-It suggests that alcohol use is an important dimension along which adolescents sort their friendships.
+iii. Spatial proximity: The log‑distance effect is –0.1862 (p \< 0.001), indicating that greater geographical distance strongly reduces the likelihood of a friendship tie.
+     **Hypothesis iii is supported.**
 
-#### Hypothesis iii (nearby living → friendship): SUPPORTED
-
-The logdist_cov effect is negative ($–0.186$) and significant ($p < 0.001$).
-As the logarithm of the distance between two pupils’ homes increases, the probability of a friendship tie drops markedly.
-This confirms that physical proximity is a strong predictor of friendship formation, even after controlling for structural processes and gender.
-
-Additional control effects
-
-Reciprocity is very strong (2.506) – friendships are overwhelmingly reciprocated.
-
-Same gender homophily is large (0.992) – a classic finding in adolescence.
-
-Gender ego and alter are not significant, so there is no evidence that boys systematically send or receive more ties than girls, once other factors are taken into account.
-
-In summary, all three focal hypotheses are supported by the data.
-The model provides a parsimonious and well‑fitting description of the friendship network evolution.
-The next sections will evaluate its goodness of fit and then extend the analysis to incorporate the co‑evolution of alcohol consumption.
-
+Control effects (not shown in the table) confirm strong reciprocity (2.506, p \< 0.001) and strong gender homophily (same gender 0.992, p \< 0.001).
+Transitive triplets were also positive and significant.
 ## 3.2 Co‑evolution of friendship and alcohol consumption
 
 ### 3.2.1 Model specification
 
 We now model friendship ties and alcohol consumption jointly.
-The network part retains the same specification as in 3.1, except that alcohol similarity is now expressed via the behavioural dependent variable (`simX` with `alcohol_dep`), because alcohol can change across waves.
+The network part retains the same specification as in 3.1, except that alcohol similarity is now expressed via the behavioral dependent variable (`simX` with `alcohol_dep`), because alcohol can change across waves.
 
 For the behavioural part we include:
 
@@ -690,57 +641,63 @@ For the behavioural part we include:
 -   Popularity leading to alcohol increase: `effFrom` effect of indegree on alcohol: A positive coefficient means that pupils with higher indegree tend to increase their alcohol consumption over time.
 -   Actors adjust their alcohol consumption to their friends `avSim` (average similarity) effect: A positive coefficient indicates that pupils change their alcohol consumption to become more similar to their friends.
 
-```{r coev_spec}
+```{r coev_effects, results='hide'}
 myeff_coev <- getEffects(mydata_coev)
-
-# Network effects (same structure as 3.1, but using alcohol_dep for similarity)
 myeff_coev <- includeEffects(myeff_coev, recip, transTrip,
-                             egoX, altX, sameX,
-                             interaction1 = "gender")
+                             egoX, altX, sameX, interaction1 = "gender")
 myeff_coev <- includeEffects(myeff_coev, inPop)
-myeff_coev <- includeEffects(myeff_coev, simX,
-                             interaction1 = "alcohol_dep")
-myeff_coev <- includeEffects(myeff_coev, X,
-                             interaction1 = "logdist_cov")
+myeff_coev <- includeEffects(myeff_coev, simX, interaction1 = "alcohol_dep")
+myeff_coev <- includeEffects(myeff_coev, X, interaction1 = "logdist_cov")
+myeff_coev <- includeEffects(myeff_coev, lin, quad, name = "alcohol_dep")
+myeff_coev <- includeEffects(myeff_coev, avSim, name = "alcohol_dep", interaction1 = "friendship")
+```
 
-# Behavioural effects
-myeff_coev <- includeEffects(myeff_coev, lin, quad,
-                             name = "alcohol_dep")
-myeff_coev <- includeEffects(myeff_coev, effFrom,
-                             name = "alcohol_dep",
-                             interaction1 = "friendship",
-                             interaction2 = "indeg")
-myeff_coev <- includeEffects(myeff_coev, avSim,
-                             name = "alcohol_dep",
-                             interaction1 = "friendship")
-
+```{r coev_effects_show}
 myeff_coev
 ```
 
 ### 3.2.2 Estimation and convergence
-
-```{r coev_est, cache=TRUE}
-alg_coev <- sienaAlgorithmCreate(projname = "coev", nsub = 4, n3 = 1000,
-                                 seed = 1234)
+```{r coev_est, results='hide', cache=TRUE}
+alg_coev <- sienaAlgorithmCreate(projname = "coev", nsub = 4, n3 = 1000, seed = 1234)
 res_coev <- siena07(alg_coev, data = mydata_coev, effects = myeff_coev)
-
-summary(res_coev)
-
-# Convergence
-max(abs(res_coev$tconv))
 ```
+
+```{r coev_summary}
+summary(res_coev)
+```
+The co‑evolution model was estimated with the Robbins‑Monro algorithm,
+using 4 sub‑phases and 1000 iterations in phase 3 (total of 3266 steps).
+The starting values from phase 1 were updated in subsequent passes, and the
+final solution was obtained without major oscillation.
+
+All convergence t‑ratios are well below the critical value of 0.10 in
+absolute magnitude (the largest is –0.0892 for the friendship rate in
+period 2). The overall maximum convergence ratio is **0.155**, comfortably
+under the 0.25 threshold. This indicates that the simulated statistics
+closely match the observed values and that the parameter estimates are
+stable.
+
+The standard errors are of reasonable magnitude relative to the coefficients,
+confirming that the model is identified. No signs of degeneracy are present:
+the rate parameters (8.66 and 7.53 for friendship; 1.69 and 2.44 for alcohol)
+reflect a plausible amount of change, and the structural parameters retain
+their expected sign and magnitude.
+
+We therefore conclude that the estimation has converged properly and that
+the results can be interpreted. Hypothesis iv (popularity → alcohol change)
+could not be tested with this model, because the `effFrom indegree` effect
+led to extreme t‑ratios and had to be removed. The final behavioural
+equation includes only the linear and quadratic shape, and the average
+similarity effect that tests hypothesis v.
 
 ### 3.2.3 Goodness of fit
 
-```{r coev_gof, cache=TRUE, fig.height=8, fig.width=8}
+```{r coev_gof_est, results='hide', cache=TRUE}
+alg_coev_gof <- sienaAlgorithmCreate(projname = "coev_gof", nsub = 4, n3 = 1000, seed = 1234)
+res_coev_gof <- siena07(alg_coev_gof, data = mydata_coev, effects = myeff_coev, returnDeps = TRUE)
+```
+```{r coev_gof, cache=TRUE, results='hide'}
 
-
-# 0. Ensure the model is estimated with simulated networks
-alg_coev_gof <- sienaAlgorithmCreate(projname = "coev_gof",
-                                     nsub = 4, n3 = 1000,
-                                     seed = 1234)
-res_coev_gof <- siena07(alg_coev_gof, data = mydata_coev, effects = myeff_coev,
-                        returnDeps = TRUE)
 
 if (is.null(res_coev_gof$sims)) stop("Simulations not returned – rerun with returnDeps = TRUE.")
 
@@ -800,23 +757,26 @@ BehaviorDistribution <- function (i, obsData, sims, period, groupName,
 
 # 2. Run GOFs
 gof_out_res  <- sienaGOF(res_coev_gof, OutdegreeDistribution, 
-                         varName = "friendship", verbose = FALSE)
+                         varName = "friendship", verbose = FALSE, levls = 0:20)
 gof_in_res   <- sienaGOF(res_coev_gof, IndegreeDistribution, 
-                         varName = "friendship", verbose = FALSE)
+                         varName = "friendship", verbose = FALSE, levls = 0:20)
 gof_geo_res  <- sienaGOF(res_coev_gof, GeodesicDistribution, 
                          varName = "friendship", verbose = FALSE)
 gof_triad_res <- sienaGOF(res_coev_gof, TriadCensus, 
-                          varName = "friendship", verbose = FALSE)
+                          varName = "friendship", verbose = FALSE, levls = 0:20)
 gof_beh_res  <- sienaGOF(res_coev_gof, BehaviorDistribution, 
-                         varName = "alcohol_dep", verbose = FALSE)
+                         varName = "alcohol_dep", verbose = FALSE, levls = 0:20)
 
 # Plot
+
+```
+
+```{r gof_plots, fig.height=7, fig.width=7}
 plot(gof_out_res)
 plot(gof_in_res)
 plot(gof_geo_res)
 plot(gof_triad_res)
 plot(gof_beh_res)
-
 ```
 
 #### Alcohol behaviour distribution
@@ -854,55 +814,68 @@ Together with the good convergence and the interpretable parameter estimates, th
 
 ### 3.2.4 Hypotheses iv–v and comparison with 3.1
 
-The co‑evolution model estimates two key behavioural effects.\
-Hypothesis iv (popularity → increase alcohol) could not be formally tested because the `effFrom` effect was not included in the specification; hence we focus on hypothesis v.
+**Hypothesis iv (popularity → alcohol increase):**
+We were unable to estimate the `effFrom indegree` effect because it
+produced very large t‑ratios that prevented convergence. This may be due to
+limited power (only three waves) or because popularity does not influence
+alcohol change in this classroom. **Hypothesis iv remains untested.**
 
-**Hypothesis v: Adjust alcohol to friends (`avSim`)**\
-The average similarity effect on alcohol consumption is positive and highly significant (estimate = 6.39, SE = 1.76, p \< 0.001).
-Pupils change their alcohol behaviour to become more similar to their friends – a classic social influence process.
-**Hypothesis v is therefore strongly supported.**
+**Hypothesis v (adjust to friends’ alcohol):**
+The `avSim` effect is **6.3905 (SE = 1.7558, p < 0.001)**. This is a large
+positive estimate, indicating that pupils strongly adjust their alcohol
+consumption to become more similar to the average consumption of their
+friends. **Hypothesis v is supported.**
 
-**Comparison with the network‑only model (3.1)**\
-The network part of the co‑evolution model (effects 3‑10) retains the same structural and covariate effects as in 3.1, but alcohol similarity is now expressed via the behavioural dependent variable (`alcohol_dep similarity`).
+**Comparison with the network‑only model (3.1):**
 
--   **Alcohol similarity (selection):**\
-    `alcohol_dep similarity` = 1.65 (SE = 0.36, p \< 0.001).\
-    This is larger than the constant‑covariate version (0.50) and shows that the selection effect is robust even after accounting for simultaneous influence.
-    Pupils prefer friends with similar current alcohol consumption.
+| Effect                     | Network‑only (3.1) | Co‑evolution (3.2) | Change?          |
+|----------------------------|-------------------|-------------------|------------------|
+| indegree popularity        | 0.0564 (p<.001)   | 0.0529 (p<.001)   | Similar          |
+| alcohol similarity (sel.)  | 0.5025 (p=.003)   | 1.6485 (p<.001)   | Larger, significant |
+| log‑distance               | –0.1862 (p<.001)  | –0.2001 (p<.001)  | Similar          |
+| reciprocity                | 2.5058            | 2.4577            | Similar          |
+| same gender                | 0.9923            | 0.9956            | Almost identical |
 
--   **Hypothesis i (indegree popularity):**\
-    Coefficient = 0.053 (p \< 0.001), essentially unchanged from 0.056 in the network‑only model.
-    Popular pupils remain more attractive as friends.
+All network effects that were significant in the network‑only model remain
+significant and have nearly identical magnitudes. This shows that the
+co‑evolution model does not distort the structural estimates. The alcohol
+similarity effect becomes much larger (from 0.50 to 1.65) when alcohol
+is treated as a dynamic behaviour, because the model now captures ongoing
+selection based on contemporaneous alcohol levels rather than a frozen
+baseline.
 
--   **Hypothesis ii (alcohol similarity on tie formation):**\
-    Now captured by `alcohol_dep similarity` (above).
-    The significance and direction are consistent with the earlier finding.
-
--   **Hypothesis iii (spatial proximity):**\
-    `logdist_cov` = –0.200 (p \< 0.001), very close to the previous –0.186.
-    Greater distance still strongly reduces friendship probability.
-
--   **Reciprocity, transitivity, gender homophily:**\
-    All remain strong and significant, with only minor numerical changes.
-
-In summary, the conclusions about hypotheses i–iii are unchanged by incorporating the behavioural dynamics.
-The joint model confirms that alcohol‑based selection and spatial proximity both shape friendship formation, while a simultaneous social influence process drives alcohol convergence among friends.
+The main new insight is the clear evidence of an influence process:
+the highly significant `avSim` parameter tells us that, beyond selecting
+similar friends, pupils also *change* their drinking to match their
+friends’ behaviour.
 
 ### 3.2.5 Selection, influence, or both?
 
-Both effects are positive and statistically significant:
+In the co‑evolution model, **both** selection and influence processes
+are present and statistically significant.
 
-| Mechanism | Effect                 | Estimate | SE   | p        |
-|-----------|------------------------|----------|------|----------|
-| Selection | alcohol_dep similarity | 1.65     | 0.36 | \< 0.001 |
-| Influence | average similarity     | 6.39     | 1.76 | \< 0.001 |
+- **Selection:** The `alcohol_dep similarity` effect in the network
+  equation is positive and significant (1.6485, p < 0.001). This means
+  that pupils are more likely to form and maintain friendships with
+  peers who have a similar level of alcohol consumption.
 
-The data therefore provide clear evidence for **both** selection and influence operating simultaneously.
-Adolescents choose friends based in part on alcohol similarity, and once friendships are established, they influence each other’s drinking habits.
+- **Influence:** The `average similarity` effect in the behaviour
+  equation is positive and significant (6.3905, p < 0.001). This means
+  that pupils change their alcohol consumption over time to become more
+  similar to the average consumption of their friends.
 
-This pattern indicates a *co‑evolutionary feedback loop*: alcohol use serves as a basis for friendship sorting, and friendship groups subsequently reinforce similar alcohol consumption through peer influence.
-Neither a pure selection‑only nor a pure influence‑only interpretation is sufficient to describe the observed dynamics.
+Because both effects are significant while controlling for each other,
+the data support a **dynamic feedback loop**: adolescents seek out friends
+with similar drinking habits (selection), and once they are friends, they
+mutually influence each other’s alcohol consumption (influence). This dual
+process can lead to increasing homogeneity within friendship groups and may
+partly explain the strong alcohol homophily observed in cross‑sectional
+analyses.
 
+It is important to note that the selection effect is estimated net of
+the influence process, and vice‑versa. The fact that both remain robust
+strengthens the conclusion that neither mechanism alone can account for
+the observed patterns – they operate simultaneously.
 # 3.3 Improving the model
 
 The GOF diagnostics indicate that the model slightly mis‑represents the geodesic distance distribution and the tail of the degree distributions.
@@ -917,16 +890,13 @@ Two extensions would likely improve the fit:
 # 3.4 Two additional hypotheses
 
 **Hypothesis A: Pupils with the same ethnic background are more likely to become and remain friends.**\
-*Operationalisation:* If a categorical variable `ethnicity` were available, we would add the `sameX` effect for that covariate.
-A positive coefficient would indicate homophily.\
+*Operationalisation:* If a categorical variable `ethnicity` were available, we would add the `sameX` effect for that covariate. A positive coefficient would indicate homophily.\
 *Pictorial representation:* Nodes coloured by ethnicity; ties tend to connect nodes of the same colour.
 
 **Hypothesis B: The influence of friends on alcohol consumption is stronger for boys than for girls.**\
 *Operationalisation:* This could be tested by an interaction between `avSim` and gender.
-In RSiena one can include an `effFrom` effect of an actor’s attribute on the rate function?
-More directly, one can split the data by gender and compare models, or include the `egoX` interaction with `avSim`?
-A feasible approach is to define an `egoX * avSim` interaction (available via `includeEffects(..., avSim, interaction1 = "friendship", interaction2 = "alcohol_dep", interaction3 = "gender")`?
-RSiena does not directly permit three‑way interactions, but one can create an ego‑alter alcohol similarity effect that varies by ego‑gender using `includeInteraction`.
+In RSiena one can include an `effFrom` effect of an actor’s attribute on the rate function.
+More directly, one can split the data by gender and compare models, or include the `egoX` interaction with `avSim`.
 For simplicity, we propose to estimate the model separately for boys and girls and compare the `avSim` coefficients.
 A significantly larger coefficient for boys would support the hypothesis.\
 *Pictorial representation:* Two panels showing a boy and a girl node, with arrows pointing to friends; the boy’s arrow is thicker, indicating a stronger influence.
