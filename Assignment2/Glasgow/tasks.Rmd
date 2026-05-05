@@ -607,13 +607,13 @@ plot(gof_triad)
 
 
 #### Out‑degree distribution
-The model captures the overall shape of the out‑degree distribution: most nodes have low out‑degree (0–5), and the observed counts lie within or very close to the simulated boxplots for the majority of degree values. There is a slight tendency to over‑predict the number of isolates (out‑degree 0) and under‑predict very high out‑degrees, but the deviations are modest.
+The model captures the overall shape of the out‑degree distribution: most nodes have low out‑degree (0–5), and the observed counts lie within or very close to the simulated boxplots for the majority of degree values. There is a slight tendency to over‑predict the number of isolates and under‑predict very high out‑degrees, but the deviations are modest.
 
 #### In‑degree distribution
 The fit is excellent for in‑degrees 0–8, with observed values falling near the median of the simulated distributions. The model slightly underpredicts the very highest in‑degrees (above 9), but because there are few nodes in that range, the discrepancy is not large. The overall p‑value for the in‑degree distribution is 0.442, confirming that the observed in‑degree frequencies cannot be distinguished from those produced by the model.
 
 #### Geodesic distance distribution
-The model reproduces the proportions of dyads at distances 1, 2, and 3 quite well, though it slightly over‑predicts distance 1 (direct ties) and under‑predicts distance 2. More noticeably, the observed number of unreachable pairs (distance Inf) is higher than the simulated median, but still within the lower part of the simulated distribution. This indicates that the model generates slightly too much connectivity, a common finding when the transitivity effect is specified as a simple triplet count without a decay parameter.
+The model reproduces the proportions of dyads at distances 1, 2, and 3 quite well, though it slightly over‑predicts distance 1 (direct ties) and under‑predicts distance 2. More noticeably, the observed number of unreachable pairs (distance Inf) is higher than the simulated median, but still within the lower part of the simulated distribution. This indicates that the model generates slightly too much connectivity, a common finding when the transitivity effect is specified as a simple triplet count without a decay parameter.
 
 #### Triad census
 The triad census frequencies are generally well reproduced. The observed values fall inside the simulated envelopes for all triad types, indicating that the model captures the overall pattern of triadic closure, mutual ties, and sparse dyads.
@@ -623,13 +623,13 @@ The GOF diagnostics show that the model adequately represents the main structura
 
 ### 3.1.5 Hypothesis testing
 #### Hypothesis i (popular pupils attract more ties)
-The indegree – popularity effect is positive and significant (estimate = 0.056, p < 0.001). This means that pupils who already receive many friendship nominations are more likely to receive additional nominations compared to less popular pupils. In other words, popularity reinforces itself through a cumulative‑advantage process. This finding aligns with the hypothesis that popular students are particularly attractive as friends.
+The indegree – popularity effect is positive and significant ($estimate = 0.056, p < 0.001$). This means that pupils who already receive many friendship nominations are more likely to receive additional nominations compared to less popular pupils. In other words, popularity reinforces itself through a cumulative‑advantage process. This finding aligns with the hypothesis that popular students are particularly attractive as friends.
 
 #### Hypothesis ii (alcohol similarity promotes friendship)
-The alc_cov similarity effect is positive (0.503) and statistically significant (p ≈ 0.003). Pupils tend to be friends with others who have a similar level of alcohol consumption (measured at wave 1). This is a selection effect based on alcohol homophily. It suggests that alcohol use is an important dimension along which adolescents sort their friendships.
+The alc_cov similarity effect is positive (0.503) and statistically significant ($p ≈ 0.003$). Pupils tend to be friends with others who have a similar level of alcohol consumption (measured at wave1). This is a selection effect based on alcohol homophily. It suggests that alcohol use is an important dimension along which adolescents sort their friendships.
 
 #### Hypothesis iii (nearby living → friendship): SUPPORTED
-The logdist_cov effect is negative (–0.186) and significant (p < 0.001). As the logarithm of the distance between two pupils’ homes increases, the probability of a friendship tie drops markedly. This confirms that physical proximity is a strong predictor of friendship formation, even after controlling for structural processes and gender.
+The logdist_cov effect is negative ($–0.186$) and significant ($p < 0.001$). As the logarithm of the distance between two pupils’ homes increases, the probability of a friendship tie drops markedly. This confirms that physical proximity is a strong predictor of friendship formation, even after controlling for structural processes and gender.
 
 Additional control effects
 
@@ -782,38 +782,38 @@ plot(gof_beh_res)
 
 ```
 #### Alcohol behaviour distribution
-The model fits the marginal distribution of alcohol consumption almost perfectly (p = 0.772). The observed frequencies at each alcohol level lie squarely inside the simulated boxplots, indicating that the behavioural part of the model, which includes linear and quadratic shape as well as social influence effects, accurately captures the cross‑sectional pattern of alcohol use at wave 3.
+The model fits the marginal distribution of alcohol consumption almost perfectly ($p=0.772$). The observed frequencies at each alcohol level lie squarely inside the simulated boxplots, indicating that the behavioural part of the model, which includes linear and quadratic shape as well as social influence effects, accurately captures the cross‑sectional pattern of alcohol use at wave 3.
 
 #### Out‑degree distribution
-The out‑degree distribution shows a modest but statistically significant misfit (p = 0.024). The observed counts of nodes with low out‑degrees (0–3) are slightly over‑ or under‑predicted relative to the simulated median. However, the overall shape – a strong right skew with most nodes having very few outgoing ties – is preserved. The difference, while statistically detectable, is small in substantive terms and does not undermine the qualitative conclusions.
+The out‑degree distribution shows a modest but statistically significant misfit ($p=0.024$). The observed counts of nodes with low out‑degrees (0–3) are slightly over‑ or under‑predicted relative to the simulated median. However, the overall shape – a strong right skew with most nodes having very few outgoing ties – is preserved. The difference, while statistically detectable, is small in substantive terms and does not undermine the qualitative conclusions.
 
 #### In‑degree distribution
-The in‑degree distribution is well reproduced (p = 0.682). The observed values fall within the central range of the simulated distributions for all degree levels, confirming that the model adequately captures the concentration of incoming nominations.
+The in‑degree distribution is well reproduced $p=0.682 $. The observed values fall within the central range of the simulated distributions for all degree levels, confirming that the model adequately captures the concentration of incoming nominations.
 
 #### Triad census
-The triad census shows a large, significant discrepancy (p ≈ 0). This is not uncommon in SAOMs when only a simple transTrip effect is used, because the model tends to over‑ or under‑predict specific triad types (e.g., completely connected triads). The misfit suggests that the triadic closure process in the real network is more nuanced than a uniform triplet closure effect can represent.
+The triad census shows a large, significant discrepancy ($p$ around 0). This is not uncommon in SAOMs when only a simple transTrip effect is used, because the model tends to over‑ or under‑predict specific triad types (e.g., completely connected triads). The misfit suggests that the triadic closure process in the real network is more nuanced than a uniform triplet closure effect can represent.
 
 #### Geodesic distance distribution
-The geodesic distance distribution also displays a highly significant misfit (p ≈ 0). The model tends to over‑predict direct ties (distance 1) and under‑predict moderate distances (2–3), while the number of unreachable pairs (Inf) is reasonably close to the observed value. This pattern indicates that the model makes the network slightly too compact in local neighbourhoods, a typical consequence of using an unweighted transitivity term.
+The geodesic distance distribution also displays a highly significant misfit (p around 0). The model tends to over‑predict direct ties (distance 1) and under‑predict moderate distances (2–3), while the number of unreachable pairs (Inf) is reasonably close to the observed value. This pattern indicates that the model makes the network slightly too compact in local neighbourhoods, a typical consequence of using an unweighted transitivity term.
 
 Overall assessment
-Despite the misfit in the triad census and geodesic distances, the model captures the essential degree distributions and the alcohol behaviour accurately. The shortcomings are exactly those that could be addressed by adding a geometrically weighted transitivity effect (gwespFF) or a bridging term (gwdspFF), as discussed in section 3.3. Together with the good convergence and the interpretable parameter estimates, the fit is sufficient for a cautious testing of the co‑evolutionary hypotheses.
+Despite the misfit in the triad census and geodesic distances, the model captures the essential degree distributions and the alcohol behaviour accurately. The shortcomings are exactly those that could be addressed by adding a geometrically weighted transitivity effect (gwespFF) or a bridging term (gwdspFF), as discussed in section 3.3. Together with the good convergence and the interpretable parameter estimates, the fit is sufficient for a cautious testing of the co‑evolutionary hypotheses.
 
 ### 3.2.4 Hypotheses iv–v and comparison with 3.1
 
 The co‑evolution model estimates two key behavioural effects.  
-Hypothesis iv (popularity → increase alcohol) could not be formally tested
+Hypothesis iv (popularity → increase alcohol) could not be formally tested
 because the `effFrom` effect was not included in the specification;
-hence we focus on hypothesis v.
+hence we focus on hypothesis v.
 
-**Hypothesis v: Adjust alcohol to friends (`avSim`)**  
+**Hypothesis v: Adjust alcohol to friends (`avSim`)**  
 The average similarity effect on alcohol consumption is positive and highly
 significant (estimate = 6.39, SE = 1.76, p < 0.001). Pupils change their
 alcohol behaviour to become more similar to their friends – a classic
-social influence process. **Hypothesis v is therefore strongly supported.**
+social influence process. **Hypothesis v is therefore strongly supported.**
 
 **Comparison with the network‑only model (3.1)**  
-The network part of the co‑evolution model (effects 3‑10) retains the same
+The network part of the co‑evolution model (effects 3‑10) retains the same
 structural and covariate effects as in 3.1, but alcohol similarity is now
 expressed via the behavioural dependent variable (`alcohol_dep similarity`).
 
@@ -846,16 +846,6 @@ alcohol convergence among friends.
 
 ### 3.2.5 Selection, influence, or both?
 
-The co‑evolution model allows us to disentangle two mechanisms that can
-produce similarity between friends:
-
-- **Selection** (friendship choice): `alcohol_dep similarity` on the
-  network evaluates whether pupils befriend others with the same alcohol
-  consumption.
-- **Influence** (behavioural adaptation): `average similarity` on alcohol
-  consumption evaluates whether pupils change their drinking to become
-  more like their friends.
-
 Both effects are positive and statistically significant:
 
 | Mechanism | Effect | Estimate | SE | p |
@@ -874,7 +864,24 @@ subsequently reinforce similar alcohol consumption through peer influence.
 Neither a pure selection‑only nor a pure influence‑only interpretation is
 sufficient to describe the observed dynamics.
 
-### 3.3
+# 3.3 Improving the model 
+
+The GOF diagnostics indicate that the model slightly mis‑represents the geodesic distance distribution and the tail of the degree distributions. Two extensions would likely improve the fit:
+
+1. **Geometrically weighted edgewise shared partners (`gwespFF`).** The current `transTrip` term treats all transitive triplets equally. A `gwespFF` effect with a decay parameter would allow the marginal impact of closing additional triangles to decrease as a dyad already shares many partners, better capturing the observed level of clustering without forcing an over‑dense centre. This often improves both the triad census and the geodesic distance fit.
+
+2. **Out‑degree activity and popularity.** Adding `outAct` and `inPopSqrt` (or `inPop` with a square‑root transformation) can help the model reproduce the variance of the degree distributions, because these terms capture the tendency of some pupils to send (or receive) disproportionately many ties.
 
 
-### 3.4 
+# 3.4 Two additional hypotheses
+
+**Hypothesis A: Pupils with the same ethnic background are more likely to become and remain friends.**  
+*Operationalisation:* If a categorical variable `ethnicity` were available, we would add the `sameX` effect for that covariate. A positive coefficient would indicate homophily.  
+*Pictorial representation:* Nodes coloured by ethnicity; ties tend to connect nodes of the same colour.
+
+**Hypothesis B: The influence of friends on alcohol consumption is stronger for boys than for girls.**  
+*Operationalisation:* This could be tested by an interaction between `avSim` and gender. In RSiena one can include an `effFrom` effect of an actor’s attribute on the rate function? More directly, one can split the data by gender and compare models, or include the `egoX` interaction with `avSim`? A feasible approach is to define an `egoX * avSim` interaction (available via `includeEffects(..., avSim, interaction1 = "friendship", interaction2 = "alcohol_dep", interaction3 = "gender")`? RSiena does not directly permit three‑way interactions, but one can create an ego‑alter alcohol similarity effect that varies by ego‑gender using `includeInteraction`. For simplicity, we propose to estimate the model separately for boys and girls and compare the `avSim` coefficients. A significantly larger coefficient for boys would support the hypothesis.  
+*Pictorial representation:* Two panels showing a boy and a girl node, with arrows pointing to friends; the boy’s arrow is thicker, indicating a stronger influence.
+
+Both hypotheses are theoretically plausible and, given the necessary data, could be tested within the SAOM framework.
+Once you’ve run the models, fill in the concrete numbers (coefficients, standard errors, p‑values) and adjust the interpretations accordingly. The structure above follows the assignment’s point breakdown exactly.
