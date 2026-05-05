@@ -778,3 +778,133 @@ covariance/correlation matrix of X can be found using
 summary(ans) within R, or by using the 'verbose' option in Siena07.
  
 Total computation time 134.52 seconds.
+
+
+-----------------------------------
+New Analysis started.
+Date and time: 05/05/2026 11:01:24
+New results follow.
+-----------------------------------
+
+RSiena version 1.6.6 (20 Apr 26)
+
+
+@1
+Estimation by stochastic approximation algorithm.
+=================================================
+
+Current random number seed is 1234.
+Effects object used: myeff_net 
+Model Type:
+ Standard actor-oriented model 
+Estimation method: conditional moment estimation.
+Conditioning variable is the total number of observed changes ("distance") 
+in the network variable.
+Distances for simulations are
+period   :   1   2
+distance :  477 437.
+Standard errors are estimated with the likelihood ratio method.
+Dolby method (regression on scores) is used.
+Initial value of gain parameter is  0.2000000.
+Reduction factor for gain parameter is  0.5000000.
+Number of subphases in Phase 2 is 4.
+
+Initial parameter values are 
+  0.1  Rate parameter                         7.4542
+  0.2  Rate parameter                         6.8293
+  1. eval:  outdegree (density)                            -1.6130
+  2. eval:  reciprocity                                     0.0000
+  3. eval:  indegree - popularity                           0.0000
+  4. eval:  logdist_cov                                     0.0000
+  5. eval:  gender alter                                    0.0000
+  6. eval:  gender ego                                      0.0000
+  7. eval:  same gender                                     0.0000
+  8. eval:  alc_cov similarity                              0.0000
+
+
+Values of target statistics are
+  1. Number of ties                                                     909.0000
+  2. Number of reciprocated ties                                        548.0000
+  3. Sum of squared indegrees                                          4419.0000
+  4. Sum of ties x logdist_cov                                         -189.9997
+  5. Sum indegrees x gender                                             357.0000
+  6. Sum outdegrees x gender                                            372.0000
+  7. Same values on gender                                              814.0000
+  8. Similarity on alc_cov                                               46.7154
+These were calculated from the data.
+
+ 8 parameters, 8 statistics
+
+Estimation of derivatives by the LR method (type 1).
+
+
+@2
+End of stochastic approximation algorithm, phase 3.
+---------------------------------------------------
+
+Total of 2796 iterations.
+Parameter estimates based on 1796 iterations,
+basic rate parameters as well as 
+convergence diagnostics, covariance and derivative matrices based on 1000 iterations.
+
+Information for convergence diagnosis.
+Averages, standard deviations, and t-ratios for deviations from targets:
+  1.   0.7440  31.7869   0.0234 
+  2.  -0.4120  27.3186  -0.0151 
+  3.   8.9920 301.3232   0.0298 
+  4.  -0.2047  21.1536  -0.0097 
+  5.  -0.4780  19.5984  -0.0244 
+  6.   0.0580  19.5369   0.0030 
+  7.   0.9760  29.9940   0.0325 
+  8.   0.2486   5.7027   0.0436 
+
+Good convergence is indicated by the t-ratios being close to zero.
+
+Overall maximum convergence ratio =  0.1189 .
+
+
+
+@2
+Estimation Results.
+-------------------
+
+Regular end of estimation algorithm.
+Total of 2796 iteration steps.
+
+
+@3
+Estimates and standard errors
+                             
+Rate parameters:
+ 0.1  Rate parameter period 1     8.9234  (   0.7292)
+ 0.2  Rate parameter period 2     7.5435  (   0.6107)
+
+Other parameters:
+ 1. eval:  outdegree (density)                                    -3.4256  (   0.1190)
+ 2. eval:  reciprocity                                             2.5058  (   0.0810)
+ 3. eval:  indegree - popularity                                   0.0564  (   0.0155)
+ 4. eval:  logdist_cov                                            -0.1862  (   0.0418)
+ 5. eval:  gender alter                                           -0.1094  (   0.0926)
+ 6. eval:  gender ego                                              0.1553  (   0.0964)
+ 7. eval:  same gender                                             0.9923  (   0.0822)
+ 8. eval:  alc_cov similarity                                      0.5025  (   0.1688)
+
+
+@3
+Covariance matrices
+                   
+Covariance matrix of estimates (correlations below diagonal):
+     0.014     -0.002     -0.001     -0.001      0.001     -0.003     -0.006     -0.001
+    -0.196      0.007      0.000      0.000      0.000      0.000     -0.001      0.000
+    -0.702      0.115      0.000      0.000      0.000      0.000      0.000      0.000
+    -0.102      0.061      0.169      0.002      0.000      0.000      0.000      0.000
+     0.109     -0.040     -0.015     -0.006      0.009     -0.007     -0.001      0.001
+    -0.302      0.040      0.052      0.019     -0.750      0.009      0.002      0.000
+    -0.628     -0.103      0.060      0.044     -0.171      0.195      0.007      0.000
+    -0.064      0.019     -0.014     -0.037      0.048     -0.017     -0.022      0.028
+
+Derivative matrix of expected statistics X by parameters and
+covariance/correlation matrix of X can be found using
+summary(ans) within R, or by using the 'verbose' option in Siena07.
+ 
+Total computation time 79.72 seconds.
